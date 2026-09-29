@@ -775,6 +775,8 @@
   /* the route: one line, straight down through every track, behind each chip, between its harbours */
   var rsvg = document.getElementById("route"), R = { lit: null, ship: null, len: 0, samples: [] };
   function relM(e) { var a = e.getBoundingClientRect(), b = mainEl.getBoundingClientRect(); return { x: a.left - b.left, y: a.top - b.top, w: a.width, h: a.height }; }
+  function pageX(e) { var x = 0; for (var n = e; n; n = n.offsetParent) x += n.offsetLeft; return x; }
+  function layoutX(e) { return pageX(e) - pageX(mainEl); }
   function rounded(pts, r) {
     var d = "M" + pts[0][0] + " " + pts[0][1];
     for (var i = 1; i < pts.length - 1; i++) {
@@ -791,7 +793,11 @@
     pts.push([mw / 2, cue.y + cue.h + 18]);
     pts.push([mw / 2, story.y + story.h + 60]);
     T.forEach(function (t, i) {
-      var tr = relM(t.s), x = relM(t.p).x + t.dockX, prev = pts[pts.length - 1], turn = tr.y - 110;
+      // The card's LAYOUT x, not its on-screen box: during the entrance animation cards are scaled
+      // (0.9), so getBoundingClientRect's left moves by 5% of the width while dockX (half of
+      // offsetWidth) doesn't. Mixing the two put the line up to ~80 px off the docks after any
+      // re-layout (found 2026-09-29). offsetLeft ignores transforms.
+      var tr = relM(t.s), x = layoutX(t.p) + t.dockX, prev = pts[pts.length - 1], turn = tr.y - 110;
       if (Math.abs(prev[0] - x) > 1) { pts.push([prev[0], turn]); pts.push([x, turn]); }
       pts.push([x, tr.y + tr.h + (t.dout ? 60 : 0)]);
     });
@@ -851,6 +857,22 @@
   var rt, wasTall;
   addEventListener("resize", function () { clearTimeout(rt); rt = setTimeout(function () { sizeBg(); if (reduce) drawBg(); relayout();
     if ((svg.parentNode.clientWidth < 620) !== wasTall) { stopChip(); build(); wasTall = Gm.tall; startChip(); } }, 200); });
+  /* The route is drawn from measured positions, so redraw it whenever the page's own size changes,
+     not only on window "resize": maximising, snapping, a background tab, a late image or font can
+     change the layout with no resize event (found 2026-09-29: line up to 210 px off its docks). */
+  if (window.ResizeObserver) {
+    var roW = mainEl.clientWidth, roT;
+    new ResizeObserver(function () {
+      var w = mainEl.clientWidth; if (Math.abs(w - roW) < 1) return; roW = w;
+      clearTimeout(roT); roT = setTimeout(function () { sizeBg(); if (reduce) drawBg(); relayout(); }, 200);
+    }).observe(mainEl);
+    var bodyH = document.body.scrollHeight, bodyT;
+    new ResizeObserver(function () {
+      var h = document.body.scrollHeight; if (Math.abs(h - bodyH) < 2) return; bodyH = h;
+      clearTimeout(bodyT); bodyT = setTimeout(function () { var h2 = document.body.scrollHeight; relayout(); bodyH = document.body.scrollHeight || h2; }, 250);
+    }).observe(document.body);
+  }
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) relayout(); });
 
   function applyLang(l, save) {
     lang = l; var D = l === "ar" ? AR : EN;
