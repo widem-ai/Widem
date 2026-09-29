@@ -1,0 +1,872 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Widem: custom software, automation and AI for businesses</title>
+<meta name="description" content="Widem builds custom software, automations and AI agents that take admin off your plate in 2 weeks, without hiring anyone. Arabic and English.">
+<script>
+  (function () { try {
+    var t = localStorage.getItem("widem-theme"), l = localStorage.getItem("widem-lang"), r = document.documentElement;
+    if (t === "light" || t === "dark") r.setAttribute("data-theme", t);
+    if (l === "ar") { r.lang = "ar"; r.dir = "rtl"; }
+  } catch (e) {} document.documentElement.classList.add("js"); })();
+</script>
+<link rel="stylesheet" href="tokens.css">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[
+ {"@type":"Organization","@id":"https://widem-ai.github.io/#org","name":"Widem","url":"https://widem-ai.github.io/","areaServed":"SA",
+  "description":"Saudi-based software and AI agency building custom software, automations, AI agents, websites, backend and security for small and mid-sized businesses.",
+  "founder":{"@type":"Person","name":"Mohannad Abdelrazek","sameAs":"https://www.linkedin.com/in/muhannad-abdulrazek-b41707371/"}},
+ {"@type":"ProfessionalService","name":"Widem","url":"https://widem-ai.github.io/","areaServed":"SA","availableLanguage":["en","ar"],"provider":{"@id":"https://widem-ai.github.io/#org"}},
+ {"@type":"WebSite","name":"Widem","url":"https://widem-ai.github.io/","inLanguage":["en","ar"]},
+ {"@type":"FAQPage","mainEntity":[
+  {"@type":"Question","name":"What does Widem do?","acceptedAnswer":{"@type":"Answer","text":"Widem is a Saudi-based software and AI agency. We build custom software, automations and AI agents that take admin work off small and mid-sized businesses, plus the websites, backend and security around them."}},
+  {"@type":"Question","name":"How long does it take to build?","acceptedAnswer":{"@type":"Answer","text":"Usually 1 to 2 weeks, counted from the day we have your documents and the information we need."}},
+  {"@type":"Question","name":"How much does custom business software cost?","acceptedAnswer":{"@type":"Answer","text":"It depends on what we build. After a free 30-minute call you get a quote for your exact scope, before any work starts."}},
+  {"@type":"Question","name":"Do I have to replace the tools I already use?","acceptedAnswer":{"@type":"Answer","text":"No. We can build around the tools you already use and connect them, or replace only the parts that slow you down."}},
+  {"@type":"Question","name":"Does it work in Arabic?","acceptedAnswer":{"@type":"Answer","text":"Yes. Everything we build works in Arabic and English, with right-to-left layouts done properly."}}
+ ]}
+]}
+</script>
+<style>
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  a { color: inherit; }
+  .panel-bg { background: linear-gradient(160deg, var(--surface), var(--ground-2)); }
+
+  /* header */
+  .site-head { position: fixed; inset-block-start: 0; inset-inline: 0; z-index: 40; transition: background-color .3s; }
+  .site-head.solid { background: color-mix(in srgb, var(--ground) 84%, transparent); backdrop-filter: blur(14px); }
+  .head-in { max-width: 1280px; margin: 0 auto; padding: 12px var(--gutter); display: flex; align-items: center; gap: 22px; }
+  .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.25rem; letter-spacing: -0.02em; text-decoration: none; }
+  .brand svg { width: 22px; height: 22px; } .brand rect { fill: var(--die); stroke: var(--action-bright); stroke-width: 1.6; } .brand path { stroke: var(--action-bright); stroke-width: 1.4; }
+  .nav { position: relative; display: flex; gap: 2px; margin-inline-start: 18px; }
+  .nav a { position: relative; z-index: 1; white-space: nowrap; color: var(--ink-soft); text-decoration: none; font-size: 0.94rem; padding: 8px 10px; border-radius: 8px; transition: color .2s, text-shadow .2s; }
+  .nav a:hover, .nav a.here { color: var(--ink); } .nav a:hover { text-shadow: 0 0 12px var(--glow); } .nav a.here { font-weight: 500; }
+  .nav-sig { position: absolute; bottom: 2px; height: 2px; border-radius: 2px; background: var(--action-bright); box-shadow: 0 0 10px var(--glow); left: 0; width: 0; opacity: 0;
+             transition: left .35s cubic-bezier(.3,.7,.2,1), width .35s cubic-bezier(.3,.7,.2,1), opacity .25s; }
+  .readout { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; font-size: 0.85rem; background: color-mix(in srgb, var(--surface) 70%, transparent); border: 1px solid var(--die-line); white-space: nowrap; margin-inline-start: auto; margin-block: 0; }
+  .readout i { width: 7px; height: 7px; border-radius: 50%; background: var(--action-bright); box-shadow: 0 0 8px var(--glow); animation: led 1.6s ease-in-out infinite; }
+  @keyframes led { 50% { opacity: .35; } }
+  .readout span.swap { animation: swap .45s ease both; } @keyframes swap { from { opacity: 0; transform: translateY(6px); filter: blur(3px); } }
+  .ctrl { display: flex; align-items: center; gap: 12px; }
+  .icon-btn { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--die-line); background: transparent; color: var(--ink); cursor: pointer; transition: border-color .2s, box-shadow .2s; }
+  .icon-btn:hover { border-color: var(--action-bright); box-shadow: 0 0 14px var(--glow); }
+  .icon-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+  .icon-btn .sun { display: none; } :root[data-theme="light"] .icon-btn .sun { display: block; } :root[data-theme="light"] .icon-btn .moon { display: none; }
+  .seg { position: relative; display: inline-grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--die-line); border-radius: 10px; padding: 3px; margin: 0; min-inline-size: 0; }
+  .seg legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .seg label { position: relative; z-index: 1; padding: 5px 10px; font-size: 0.8rem; font-weight: 600; color: var(--ink-soft); cursor: pointer; text-align: center; transition: color .25s; }
+  .seg input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+  .seg label:has(input:checked) { color: var(--action-ink); }
+  .seg label:has(input:focus-visible) { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 6px; }
+  .seg .thumb { position: absolute; top: 3px; bottom: 3px; width: calc(50% - 3px); inset-inline-start: 3px; border-radius: 7px; background: var(--action); box-shadow: 0 0 12px var(--glow); transition: transform .3s cubic-bezier(.3,.7,.2,1); }
+  .seg:has(input[value="ar"]:checked) .thumb { transform: translateX(100%); } [dir="rtl"] .seg:has(input[value="ar"]:checked) .thumb { transform: translateX(-100%); }
+  .btn { position: relative; display: inline-flex; align-items: center; justify-content: center; min-height: 52px; padding: 0 30px; background: var(--action); color: var(--action-ink);
+         border-radius: var(--radius); font-weight: 600; text-decoration: none; font-size: var(--t-base); overflow: hidden; isolation: isolate; white-space: nowrap;
+         box-shadow: 0 0 0 1px color-mix(in srgb, var(--action-bright) 45%, transparent), 0 8px 28px -8px var(--glow); transition: box-shadow .25s, transform .25s; }
+  .btn::before { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(100deg, transparent 30%, rgba(255,255,255,.28) 50%, transparent 70%); transform: translateX(-120%); animation: sheen 3.8s ease-in-out infinite; }
+  @keyframes sheen { 60%, 100% { transform: translateX(120%); } }
+  .btn:hover { box-shadow: 0 0 0 1px var(--action-bright), 0 12px 38px -6px var(--glow); transform: translateY(-2px); }
+  .btn.small { min-height: 38px; padding: 0 16px; font-size: 0.9rem; }
+  @media (max-width: 1499px) { .ctrl > .btn.small { display: none; } }
+  .menu-btn { display: none; } .mnav { display: none; }
+
+  /* hero */
+  main { position: relative; overflow-x: clip; }
+  svg#route { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; z-index: 1; }
+  #route .base { fill: none; stroke: var(--die-line); stroke-width: 2; }
+  #route .lit { fill: none; stroke: var(--action-bright); stroke-width: 2.4; filter: drop-shadow(0 0 6px var(--glow)); }
+  #route .ship { fill: var(--action-bright); filter: drop-shadow(0 0 8px var(--action-bright)); }
+  #route .plug { fill: var(--die); stroke: var(--action-bright); stroke-width: 1.6; }
+  .hero { position: relative; min-height: 100svh; display: grid; place-items: center; overflow: hidden; isolation: isolate; padding: 150px var(--gutter) 120px; }
+  canvas#circuit { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; }
+  .hero::after { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+                 background: radial-gradient(52% 40% at 50% 42%, color-mix(in srgb, var(--ground) 86%, transparent) 0%, transparent 74%), linear-gradient(to bottom, transparent 72%, var(--ground)); }
+  .hero-in { max-width: 1060px; text-align: center; display: grid; justify-items: center; position: relative; z-index: 2; }
+  h1 { position: relative; font-size: var(--t-hero); line-height: 1.06; letter-spacing: -0.035em; font-weight: 600; margin: 0 0 22px; max-width: 19ch; text-wrap: balance; }
+  [dir="rtl"] h1 { letter-spacing: 0; line-height: 1.32; }
+  #h-vis { display: block; }
+  .rot { display: inline-block; background: linear-gradient(90deg, var(--action-bright), var(--signal), var(--action-bright)); background-size: 220% 100%;
+         -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; animation: hue 6s linear infinite; }
+  @keyframes hue { to { background-position: -220% 0; } }
+  .rot.out { animation: hue 6s linear infinite, wordout .3s ease forwards; } .rot.in { animation: hue 6s linear infinite, wordin .45s cubic-bezier(.3,.7,.2,1); }
+  @keyframes wordout { to { opacity: 0; transform: translateY(-0.3em); filter: blur(4px); } } @keyframes wordin { from { opacity: 0; transform: translateY(0.35em); filter: blur(4px); } }
+  .js .boot #h-vis { color: transparent; -webkit-text-stroke: 1px color-mix(in srgb, var(--action-bright) 35%, transparent); }
+  .js .boot .rot { -webkit-text-stroke: 1px color-mix(in srgb, var(--action-bright) 35%, transparent); background: none; }
+  .js .lit-on #h-vis { animation: lighton 1.1s cubic-bezier(.5,0,.2,1) both; }
+  @keyframes lighton { 0% { color: transparent; -webkit-text-stroke-color: color-mix(in srgb, var(--action-bright) 60%, transparent); text-shadow: none; }
+                       55% { color: var(--ink); text-shadow: 0 0 30px var(--action-bright), 0 0 60px var(--glow); -webkit-text-stroke-color: transparent; }
+                       100% { color: var(--ink); text-shadow: 0 0 0 transparent; -webkit-text-stroke-color: transparent; } }
+  h1 .scan { position: absolute; top: -8%; bottom: -8%; width: 3px; inset-inline-start: 0; opacity: 0; pointer-events: none; background: var(--action-bright); box-shadow: 0 0 24px 8px var(--glow), 0 0 60px 16px var(--glow); }
+  .js .lit-on h1 .scan { animation: scan 1.1s cubic-bezier(.5,0,.2,1) both; }
+  @keyframes scan { 0% { inset-inline-start: 0; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { inset-inline-start: 100%; opacity: 0; } }
+  .js .boot .slogan, .js .boot .hero-in > .btn, .js .boot .cue { opacity: 0; transform: translateY(10px); }
+  .slogan, .hero-in > .btn, .cue { transition: opacity .6s, transform .6s cubic-bezier(.3,.7,.2,1); }
+  .js .lit-on .slogan { transition-delay: .9s; } .js .lit-on .hero-in > .btn { transition-delay: 1.1s; } .js .lit-on .cue { transition-delay: 1.4s; }
+  .slogan { font-size: var(--t-md); font-weight: 300; color: var(--ink-soft); margin: 0 0 38px; }
+  .cue { margin-top: 60px; color: var(--ink-soft); font-size: var(--t-sm); text-decoration: none; }
+
+  /* story board */
+  .board { position: relative; z-index: 2; margin: 110px 0 0; padding: 80px var(--gutter) 60px;
+           background: radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--die-line) 70%, transparent) 1px, transparent 1.5px) 0 0 / 22px 22px, var(--ground-2); border-block: 1px solid var(--die-line); }
+  .board-in { max-width: 1000px; margin: 0 auto; } .board h2 { text-align: center; margin: 0 auto 8px; }
+  svg#chip { width: 100%; height: auto; display: block; overflow: visible; direction: ltr; margin-top: 18px; }
+  .trace { fill: none; stroke: var(--die-line); stroke-width: 1.6; } .trace.you { stroke-dasharray: 3 5; }
+  .pin { fill: var(--pin); } .die { fill: var(--die); stroke: var(--die-line); stroke-width: 2; transition: stroke .6s, filter .6s; }
+  .grid line { stroke: color-mix(in srgb, var(--die-line) 45%, transparent); stroke-width: 1; }
+  .chip-name { fill: var(--ink-soft); font: 700 26px var(--font); transition: fill .6s; } .chip-sub { fill: var(--ink-soft); font: 400 12px var(--font); opacity: .7; }
+  svg.on .die { stroke: var(--action-bright); filter: drop-shadow(0 0 14px var(--glow)); } svg.on .chip-name { fill: var(--ink); } svg.on .chip-sub { fill: var(--action-bright); opacity: 1; }
+  .lbl { fill: var(--ink-soft); font: 400 14px var(--font); } .out { fill: var(--ink-soft); opacity: .55; font: 500 14px var(--font); transition: fill .4s, opacity .4s; } .out.hit { fill: var(--action-bright); opacity: 1; }
+  .you-ring { fill: var(--ground-2); stroke: var(--die-line); stroke-width: 2; transition: stroke .4s, filter .4s; }
+  .you-txt { fill: var(--ink); font: 600 14px var(--font); } .you-count { fill: var(--warn); font: 500 12px var(--font); }
+  .you-focus { fill: var(--signal); font: 500 13px var(--font); opacity: 0; transition: opacity .6s; }
+  svg[data-phase="1"] .you-ring { stroke: var(--warn); } svg[data-phase="3"] .you-ring { stroke: var(--signal); filter: drop-shadow(0 0 14px color-mix(in srgb, var(--signal) 60%, transparent)); }
+  svg[data-phase="3"] .you-focus { opacity: 1; } svg[data-phase="3"] .you-count { opacity: 0; }
+  .pk { filter: drop-shadow(0 0 5px currentColor); }
+  .cap { text-align: center; margin: 16px 0 0; font-size: var(--t-md); font-weight: 300; min-height: 1.6em; transition: opacity .35s; } .cap b { color: var(--action-bright); font-weight: 500; }
+
+  /* sections: a tall track with the chip pinned inside while it plays */
+  .flow { position: relative; z-index: 2; padding: 220px var(--gutter) 80px; }
+  .track { position: relative; margin: 0 0 260px; }
+  .pnl { position: relative; }
+  .pinned .pnl { position: sticky; }
+  h2 { font-size: var(--t-xl); line-height: 1.12; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 16px; max-width: 22ch; }
+  [dir="rtl"] h2 { letter-spacing: 0; line-height: 1.35; }
+  .lead { font-size: var(--t-md); font-weight: 300; color: var(--ink-soft); margin: 0; max-width: 46ch; line-height: 1.5; }
+  .kicker { display: inline-flex; align-items: center; gap: 10px; font-size: var(--t-sm); color: var(--action-bright); margin-bottom: 14px; }
+  .kicker::before { content: ""; width: 18px; height: 2px; background: currentColor; box-shadow: 0 0 8px var(--glow); }
+  .pins::before, .pins::after { content: ""; position: absolute; inset-inline: 40px; height: 7px; background: repeating-linear-gradient(90deg, var(--pin) 0 10px, transparent 10px 24px); transition: background .6s; }
+  .pins::before { top: -8px; } .pins::after { bottom: -8px; }
+  .track.on .pins::before, .track.on .pins::after { background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--action-bright) 70%, transparent) 0 10px, transparent 10px 24px); }
+
+  /* harbours: where the square lands and takes off */
+  .dock { position: absolute; z-index: 3; width: 46px; height: 22px; margin-left: -23px; border-radius: 7px; background: var(--die); border: 1.5px solid var(--die-line); display: grid; place-items: center; transition: border-color .35s, box-shadow .35s; }
+  .dock.in { top: -12px; } .dock.out { bottom: -12px; }
+  .dock::before, .dock::after { content: ""; position: absolute; top: 50%; width: 6px; height: 1.5px; background: var(--die-line); transition: background .35s; }
+  .dock::before { left: -8px; } .dock::after { right: -8px; }
+  .dock i { width: 10px; height: 10px; border-radius: 2px; background: var(--action-bright); box-shadow: 0 0 10px var(--action-bright); transform: scale(0); transition: transform .35s cubic-bezier(.3,1.6,.5,1), opacity .35s; }
+  .dock.lit { border-color: var(--action-bright); box-shadow: 0 0 16px var(--glow); } .dock.lit::before, .dock.lit::after { background: var(--action-bright); }
+  .dock.docked i { transform: scale(1); }
+  .dock.out.go i { animation: takeoff .7s ease-out forwards; }
+  @keyframes takeoff { 0% { transform: scale(1); opacity: 1; } 100% { transform: translateY(26px) scale(.6); opacity: 0; } }
+
+  /* staged reveals, played while the chip is pinned */
+  .st { transition: opacity .55s ease, transform .65s cubic-bezier(.3,.7,.2,1), filter .55s; }
+  .js .st:not(.on) { opacity: 0; }
+  .js .st.up:not(.on) { transform: translateY(22px); }
+  .js .st.side:not(.on) { transform: translateX(-28px); } [dir="rtl"] .st.side:not(.on) { transform: translateX(28px); }
+  .js .st.pop:not(.on) { transform: scale(.86); filter: blur(4px); }
+  .js .st.drop:not(.on) { transform: translateY(-30px); }
+
+  /* 1. PROBLEM */
+  #problem { max-width: 1180px; margin-inline: auto; }
+  #problem .pnl { padding: 64px 64px 60px; border-radius: 28px; border: 1.5px solid color-mix(in srgb, var(--warn) 55%, var(--die-line));
+                  transform: scale(calc(.9 + .1 * var(--in, 1))); filter: brightness(calc(1 - .55 * var(--out, 0))); } /* never see-through: the route runs behind */
+  #problem h2 { font-size: clamp(2.2rem, 4.4vw, 3.6rem); max-width: 18ch; } #problem .lead { font-size: clamp(1.2rem, 1.8vw, 1.55rem); }
+  .jams { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 44px; }
+  .jam { position: relative; min-height: 160px; padding: 26px 24px 24px; border-radius: 18px; background: color-mix(in srgb, var(--ground) 80%, transparent); border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent); transition: border-color .35s, transform .3s, box-shadow .3s, opacity .55s, filter .55s; outline: none; }
+  .jam.on { animation: redflash .7s ease-out; } @keyframes redflash { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--warn) 70%, transparent); } 100% { box-shadow: 0 0 0 18px transparent; } }
+  .jam .led { position: absolute; top: 20px; inset-inline-end: 20px; width: 10px; height: 10px; border-radius: 50%; background: var(--warn); box-shadow: 0 0 12px var(--warn); animation: blink 1.1s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: .2; } }
+  .jam .tag { display: block; font-size: var(--t-sm); color: var(--warn); margin-bottom: 12px; transition: color .3s; }
+  .jam p { margin: 0; font-size: 1.12rem; line-height: 1.45; padding-inline-end: 18px; transition: opacity .25s; }
+  .jam .fix { position: absolute; inset: 58px 24px 24px; opacity: 0; color: var(--action-bright); font-weight: 500; transform: translateY(8px); transition: opacity .3s, transform .3s; }
+  .jam:hover, .jam:focus-visible, .jam.auto { border-color: var(--action-bright); transform: translateY(-4px); box-shadow: 0 18px 40px -22px var(--glow); }
+  .jam:hover .led, .jam:focus-visible .led, .jam.auto .led { background: var(--action-bright); box-shadow: 0 0 12px var(--action-bright); animation: none; }
+  .jam:hover .tag, .jam:focus-visible .tag, .jam.auto .tag { color: var(--action-bright); }
+  .jam:hover .pain, .jam:focus-visible .pain, .jam.auto .pain { opacity: 0; } .jam:hover .fix, .jam:focus-visible .fix, .jam.auto .fix { opacity: 1; transform: none; }
+  .hint { margin: 26px 0 0; font-size: var(--t-sm); color: var(--ink-soft); }
+
+  /* 2. SERVICES */
+  #services { max-width: 1180px; margin-inline: auto; }
+  #services .pnl { padding: 56px 52px 52px; border-radius: 24px; border: 1px dashed var(--die-line); }
+  #services .head2 { max-width: 640px; margin-bottom: 38px; }
+  .sockets2 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 20px; }
+  .mod { grid-column: span 2; position: relative; border-radius: 16px; border: 1px dashed var(--die-line); background: var(--ground); min-height: 176px; }
+  .mod:nth-child(4), .mod:nth-child(5) { grid-column: span 3; }
+  .mod .m { position: relative; height: 100%; padding: 28px 26px 26px; border-radius: 16px; background: var(--ground-2); border: 1px solid transparent; transition: transform .7s cubic-bezier(.2,.9,.25,1.15), opacity .5s, border-color .4s, box-shadow .4s; }
+  .js .mod:not(.on) .m { opacity: 0; transform: translateX(var(--from, -160px)); }
+  .mod:nth-child(even) { --from: 160px; } [dir="rtl"] .mod { --from: 160px; } [dir="rtl"] .mod:nth-child(even) { --from: -160px; }
+  .mod.on .m { border-color: var(--action-bright); box-shadow: 0 0 26px -8px var(--glow); }
+  .mod:hover .m { box-shadow: 0 0 36px -4px var(--glow); }
+  .mod svg { width: 46px; height: 46px; margin-bottom: 16px; }
+  .mod svg .d { fill: var(--die); stroke: var(--action-bright); stroke-width: 1.5; } .mod svg .t { fill: none; stroke: var(--action-bright); stroke-width: 1.5; stroke-dasharray: 40; }
+  .mod:hover svg .t { animation: flowdash 1.2s linear infinite; } @keyframes flowdash { from { stroke-dashoffset: 40; } to { stroke-dashoffset: 0; } }
+  .mod b { display: block; font-size: 1.15rem; font-weight: 500; margin-bottom: 8px; } .mod span { color: var(--ink-soft); font-size: 0.97rem; line-height: 1.55; }
+
+  /* 3. COMPARE */
+  #compare { max-width: 1180px; margin-inline: auto; }
+  #compare .pnl { padding: 54px 52px 44px; border-radius: 24px; border: 1px solid var(--die-line); }
+  .bench-grid { position: relative; display: grid; grid-template-columns: minmax(220px, 1.6fr) repeat(5, minmax(0, 1fr)); margin-top: 34px; }
+  .bg-h { padding: 0 8px 18px; text-align: center; font-size: 0.88rem; color: var(--ink-soft); line-height: 1.35; align-self: end; transition: color .3s; }
+  .bg-h.ours { color: var(--action-bright); font-weight: 600; font-size: 1.12rem; }
+  .bg-r { padding: 16px 16px 16px 0; font-size: 1rem; line-height: 1.4; align-self: center; transition: color .2s; } [dir="rtl"] .bg-r { padding: 16px 0 16px 16px; }
+  .bg-r small { display: block; margin-top: 4px; font-size: 0.8rem; color: var(--ink-soft); }
+  .bg-c { display: grid; place-items: center; padding: 10px 0; transition: opacity .25s; }
+  .col-ours { position: absolute; top: 0; bottom: 0; border-radius: 16px; background: color-mix(in srgb, var(--action-bright) 8%, transparent); border: 1px solid color-mix(in srgb, var(--action-bright) 40%, transparent); pointer-events: none; opacity: 0; transition: opacity .5s; }
+  .bench-grid.w .col-ours { opacity: 1; animation: flash .8s ease-out; } @keyframes flash { 0% { box-shadow: 0 0 0 0 var(--glow); } 100% { box-shadow: 0 0 0 24px transparent; } }
+  .led2 { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; transition: transform .45s cubic-bezier(.3,1.6,.5,1), opacity .3s; }
+  .js .bg-c:not(.lit) .led2 { transform: scale(.4); opacity: .08; }
+  .led2 svg { width: 20px; height: 20px; fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+  .led2.yes { background: color-mix(in srgb, var(--action-bright) 14%, transparent); } .led2.yes svg { stroke: var(--action-bright); }
+  .led2.no { background: color-mix(in srgb, var(--warn) 10%, transparent); } .led2.no svg { stroke: var(--warn); }
+  .led2.ours { box-shadow: 0 0 18px var(--glow); }
+  .bench-grid.hl .bg-c:not(.hot) { opacity: .28; } .bench-grid.hl .bg-h:not(.hot), .bench-grid.hl .bg-r:not(.hot) { color: color-mix(in srgb, var(--ink-soft) 60%, transparent); }
+  .bench-grid .hot { color: var(--ink); }
+  .probe { position: absolute; top: -10px; bottom: -10px; width: 2px; background: var(--action-bright); box-shadow: 0 0 18px 4px var(--glow); pointer-events: none; left: 0; opacity: 0; transition: left .5s cubic-bezier(.3,.7,.2,1), opacity .3s; }
+  .note2 { margin: 24px 0 0; font-size: var(--t-sm); color: var(--ink-soft); }
+
+  /* 4. WORK */
+  #work { width: min(1040px, 80%); margin-inline-start: auto; }
+  #work .pnl { padding: 44px 50px 40px; border-radius: 22px; border: 1px solid var(--die-line); transform: scale(calc(.9 + .1 * var(--in, 1))); filter: brightness(calc(1 - .5 * var(--out, 0))); }
+  #work .big { font-size: clamp(2rem, 3.6vw, 2.9rem); margin-bottom: 20px; max-width: 22ch; }
+  .client { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; }
+  .client .logo { flex: none; width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center; background: var(--die); border: 1.5px solid var(--action-bright); box-shadow: 0 0 20px var(--glow); font-weight: 700; color: var(--action-bright); }
+  .client b { display: block; font-size: 1.3rem; font-weight: 600; } .client span { color: var(--ink-soft); font-size: 0.95rem; }
+  .story { margin: 0 0 14px; max-width: 64ch; color: var(--ink-soft); line-height: 1.65; }
+  .scope { display: block; width: 100%; height: 50px; margin: 4px 0 20px; }
+  .scope path { fill: none; stroke: var(--action-bright); stroke-width: 2; filter: drop-shadow(0 0 5px var(--glow)); stroke-dasharray: 1600; stroke-dashoffset: 1600; transition: stroke-dashoffset 1.6s cubic-bezier(.4,0,.2,1); }
+  .scope.on path { stroke-dashoffset: 0; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .stat { padding: 24px 22px 22px; border-radius: 16px; border: 1px solid var(--die-line); background: var(--ground-2); display: grid; gap: 10px; align-content: start; }
+  .stat b { display: block; font-size: var(--t-xl); font-weight: 600; color: var(--action-bright); line-height: 1; } .stat b small { font-size: .5em; font-weight: 500; }
+  .stat > span { font-size: 0.93rem; color: var(--ink-soft); line-height: 1.45; }
+  .status { margin: 28px 0 0; font-size: var(--t-sm); color: var(--ink-soft); display: flex; align-items: center; gap: 10px; }
+  .status i { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--signal); box-shadow: 0 0 10px var(--signal); animation: led 1.6s ease-in-out infinite; }
+
+  .resgrid { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.4fr); gap: 30px; align-items: start; }
+  .resgrid .stats { grid-template-columns: 1fr; gap: 10px; }
+  .resgrid .stat { padding: 14px 18px; grid-template-columns: auto 1fr; align-items: center; gap: 14px; }
+  .resgrid .stat b { font-size: 1.9rem; min-width: 2.6ch; }
+  .results { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+  .results li { position: relative; padding-inline-start: 26px; color: var(--ink); line-height: 1.55; }
+  .results li::before { content: ""; position: absolute; inset-inline-start: 0; top: .5em; width: 10px; height: 10px; border-radius: 3px; background: var(--action-bright); box-shadow: 0 0 10px var(--glow); }
+  .fnote { margin: 16px 0 0; font-size: var(--t-sm); color: var(--ink-soft); }
+  /* 5. HOW WE WORK: four mini chips on one bus */
+  #how { max-width: 1180px; margin-inline: auto; }
+  #how .pnl { padding: 56px 52px 58px; border-radius: 22px; border: 1px solid var(--die-line); }
+  .stages { position: relative; list-style: none; padding: 0; margin: 40px 0 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 26px; }
+  .bus { position: absolute; top: 50%; inset-inline: 0; height: 2px; background: var(--die-line); }
+  .bus i { position: absolute; inset-block: 0; inset-inline-start: 0; width: calc(var(--done, 0) * 100%); background: var(--action-bright); box-shadow: 0 0 10px var(--glow); transition: width .6s cubic-bezier(.3,.7,.2,1); }
+  .stage { position: relative; z-index: 1; padding: 26px 22px 24px; border-radius: 16px; border: 1px solid var(--die-line); background: var(--ground-2); transition: border-color .4s, box-shadow .4s, transform .4s, opacity .4s; }
+  .stage::before, .stage::after { content: ""; position: absolute; inset-inline: 22px; height: 5px; background: repeating-linear-gradient(90deg, var(--pin) 0 6px, transparent 6px 14px); transition: background .4s; }
+  .stage::before { top: -6px; } .stage::after { bottom: -6px; }
+  .stage .num { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; border: 1.5px solid var(--die-line); font-weight: 600; color: var(--ink-soft); margin-bottom: 18px; transition: all .4s; }
+  .stage b { display: block; font-size: 1.05rem; font-weight: 500; margin-bottom: 8px; transition: color .4s; } .stage span { color: var(--ink-soft); font-size: 0.95rem; line-height: 1.55; }
+  .js .stage:not(.on) { opacity: .4; }
+  .stage.on { border-color: color-mix(in srgb, var(--action-bright) 55%, transparent); }
+  .stage.on::before, .stage.on::after { background: repeating-linear-gradient(90deg, var(--action-bright) 0 6px, transparent 6px 14px); }
+  .stage.on .num { border-color: var(--action-bright); color: var(--action-bright); }
+  .stage.cur { transform: translateY(-8px); box-shadow: 0 22px 50px -24px var(--glow); border-color: var(--action-bright); }
+  .stage.cur .num { background: var(--action); color: var(--action-ink); box-shadow: 0 0 16px var(--glow); }
+  .stage.cur b { color: var(--action-bright); }
+
+  /* 6. ABOUT */
+  #about { width: min(780px, 66%); margin-inline-end: auto; }
+  #about .pnl { padding: 52px 52px 48px; border-radius: 22px; border: 1px solid var(--die-line); }
+  /* entry: the ID photo prints in, top to bottom, under a scan line */
+  .js .photo img { clip-path: inset(0 0 100% 0 round 26px); transition: clip-path 1.1s cubic-bezier(.5,0,.2,1); }
+  .js .photo.on img { clip-path: inset(0 0 0 0 round 26px); }
+  .photo .scanl { position: absolute; inset-inline: -6px; height: 3px; top: 0; background: var(--action-bright); box-shadow: 0 0 14px 3px var(--glow); opacity: 0; pointer-events: none; }
+  .js .photo.on .scanl { animation: printscan 1.1s cubic-bezier(.5,0,.2,1) forwards; }
+  @keyframes printscan { 0% { top: 0; opacity: 1; } 95% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+  .js .photo.st.pop:not(.on) { transform: none; filter: none; opacity: 1; }
+  .founder { display: grid; grid-template-columns: 150px 1fr; gap: 34px; align-items: center; margin-top: 30px; }
+  .photo { position: relative; width: 150px; height: 150px; }
+  .photo img { width: 100%; height: 100%; object-fit: cover; border-radius: 26px; border: 2px solid var(--action-bright); box-shadow: 0 0 34px var(--glow); display: block; }
+  .photo::before, .photo::after { content: ""; position: absolute; inset-block: 30px; width: 7px; background: repeating-linear-gradient(0deg, var(--action-bright) 0 7px, transparent 7px 16px); }
+  .photo::before { inset-inline-start: -10px; } .photo::after { inset-inline-end: -10px; }
+  .founder strong { font-size: 1.15rem; font-weight: 600; display: block; } .founder p { color: var(--ink-soft); margin: 12px 0 18px; max-width: 52ch; line-height: 1.65; }
+  .li { display: inline-flex; align-items: center; gap: 8px; color: var(--action-bright); text-decoration: none; font-weight: 500; } .li svg { width: 18px; height: 18px; fill: currentColor; }
+
+  /* 7. FAQ */
+  #faq { width: min(840px, 72%); margin-inline-start: auto; }
+  #faq .pnl { padding: 52px 48px 46px; border-radius: 22px; border: 1px solid var(--die-line); filter: blur(calc(var(--out, 0) * 6px)); }
+  .qa { margin-top: 30px; display: grid; gap: 12px; }
+  .qa details { border-radius: 14px; border: 1px solid var(--die-line); background: var(--ground-2); transition: border-color .3s, box-shadow .3s, opacity .55s, transform .65s cubic-bezier(.3,.7,.2,1); }
+  .qa details:hover { border-color: var(--ink-soft); } .qa details[open] { border-color: var(--action-bright); box-shadow: 0 10px 34px -20px var(--glow); }
+  .qa summary { list-style: none; cursor: pointer; padding: 20px 22px; font-size: 1.05rem; display: flex; justify-content: space-between; align-items: center; gap: 18px; }
+  .qa summary::-webkit-details-marker { display: none; }
+  .qa summary i { flex: none; width: 22px; height: 22px; border-radius: 6px; border: 1.5px solid var(--die-line); position: relative; transition: all .3s; }
+  .qa summary i::before, .qa summary i::after { content: ""; position: absolute; left: 5px; right: 5px; top: 9px; height: 1.5px; background: var(--action-bright); transition: transform .3s; }
+  .qa summary i::after { transform: rotate(90deg); } .qa details[open] summary i { border-color: var(--action-bright); } .qa details[open] summary i::after { transform: rotate(0deg); }
+  .qa .ans { padding: 0 22px 22px; margin: 0; color: var(--ink-soft); max-width: 64ch; line-height: 1.65; }
+  .qa details[open] .ans { animation: open .4s ease; } @keyframes open { from { opacity: 0; transform: translateY(-6px); } }
+
+  /* 8. FINAL */
+  #book { max-width: 980px; margin-inline: auto; margin-bottom: 80px; }
+  #book .pnl { text-align: center; display: grid; justify-items: center; padding: 76px 48px 70px; border-radius: 30px; border: 1px solid var(--die-line); transform: scale(calc(.84 + .16 * var(--in, 1))); transition: box-shadow .6s, border-color .6s; }
+  #book.on .pnl { border-color: var(--action-bright); box-shadow: 0 0 0 1px color-mix(in srgb, var(--action-bright) 30%, transparent), 0 30px 90px -30px var(--glow); }
+  #book h2 { margin-inline: auto; font-size: clamp(2rem, 3.8vw, 3rem); } #book .lead { margin: 0 auto 36px; }
+
+  /* footer */
+  .foot { position: relative; z-index: 2; background: var(--ground-2); }
+  .foot::before { content: ""; position: absolute; inset-inline: 0; top: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--action-bright), transparent); background-size: 50% 100%; background-repeat: no-repeat; animation: scanx 5s linear infinite; }
+  @keyframes scanx { from { background-position: -50% 0; } to { background-position: 150% 0; } }
+  .foot-in { max-width: 1280px; margin: 0 auto; padding: 64px var(--gutter) 30px; display: grid; grid-template-columns: 1.4fr repeat(4, 1fr); gap: 36px; }
+  .foot h4 { margin: 0 0 16px; font-size: 0.9rem; font-weight: 600; } .foot ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+  .foot a { color: var(--ink-soft); text-decoration: none; font-size: 0.93rem; transition: color .2s; } .foot a:hover { color: var(--action-bright); }
+  .foot .about p { color: var(--ink-soft); font-size: 0.93rem; max-width: 30ch; margin: 14px 0 0; }
+  .foot-bottom { max-width: 1280px; margin: 0 auto; padding: 20px var(--gutter) 34px; display: flex; flex-wrap: wrap; gap: 12px 24px; justify-content: space-between; color: var(--ink-soft); font-size: var(--t-sm); }
+
+  /* responsive */
+  @media (max-width: 1080px) {
+    .nav { display: none; } .menu-btn { display: grid; }
+    .mnav.open { display: grid; gap: 4px; padding: 10px var(--gutter) 20px; background: var(--ground); }
+    .mnav a { color: var(--ink); text-decoration: none; padding: 10px 0; font-size: 1.05rem; }
+    .mnav .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 10px; } .mnav .row .btn { flex: 1 1 100%; }
+  }
+  @media (max-width: 900px) {
+    .ctrl .seg, .ctrl .icon-btn:not(.menu-btn) { display: none; }
+    .flow { padding-top: 140px; } .track { margin-bottom: 150px; }
+    #work, #about, #faq { width: auto; }
+    #problem .pnl, #services .pnl, #compare .pnl, #work .pnl, #how .pnl, #about .pnl, #faq .pnl, #book .pnl { padding: 40px 22px 34px; }
+    .jams, .stats, .resgrid { grid-template-columns: 1fr; } .jam { min-height: 0; }
+    .sockets2 { grid-template-columns: 1fr; } .mod, .mod:nth-child(4), .mod:nth-child(5) { grid-column: auto; min-height: 0; }
+    .stages { grid-template-columns: 1fr; gap: 22px; } .bus { top: 0; bottom: 0; inset-inline: 38px auto; width: 2px; height: auto; } .bus i { width: 100%; height: calc(var(--done, 0) * 100%); inset-block-end: auto; }
+    .founder { grid-template-columns: 1fr; } .photo { width: 120px; height: 120px; }
+    .bench-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .bg-corner { display: none; } .bg-r { grid-column: 1 / -1; padding: 18px 0 6px; } [dir="rtl"] .bg-r { padding: 18px 0 6px; }
+    .bg-h { font-size: 0.68rem; line-height: 1.2; padding-inline: 1px; overflow-wrap: anywhere; } .bg-h .lg { display: none; } .bg-h .sh { display: inline !important; }
+    .col-ours, .probe { display: none; }
+    .foot-in { grid-template-columns: 1fr 1fr; } .foot .about { grid-column: 1 / -1; }
+  }
+  .bg-h .sh { display: none; }
+  @media (max-width: 520px) { h2 { font-size: var(--t-lg); } .readout { font-size: 0.78rem; padding: 5px 10px; } }
+</style>
+<script src="cursor.js" defer></script>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="yes" viewBox="0 0 24 24"><path d="M4.5 12.5l5 5 10-11"/></symbol>
+  <symbol id="no" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+</svg>
+
+<header class="site-head" id="head">
+  <div class="head-in">
+    <a class="brand" href="#top" aria-label="Widem, home"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="3"/><path d="M9 5V2M15 5V2M9 22v-3M15 22v-3M5 9H2M5 15H2M22 9h-3M22 15h-3"/></svg><span>Widem</span></a>
+    <nav class="nav" id="nav" aria-label="Main">
+      <a href="#problem" data-t="n0">Why</a><a href="#services" data-t="n1">Services</a><a href="#compare" data-t="n6">Compare</a><a href="#work" data-t="n3">Work</a>
+      <a href="#how" data-t="n2">How we work</a><a href="#about" data-t="n4">About</a><a href="#faq" data-t="n5">FAQ</a>
+      <span class="nav-sig" id="nav-sig" aria-hidden="true"></span>
+    </nav>
+    <p class="readout" aria-live="polite"><i aria-hidden="true"></i><span class="sr" data-t="now">You are on:</span><span id="readout">Widem</span></p>
+    <div class="ctrl">
+      <button class="icon-btn" id="theme" type="button" aria-label="Switch to light mode">
+        <svg class="moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>
+        <svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M18.7 5.3l-1.8 1.8M7.1 16.9l-1.8 1.8"/></svg>
+      </button>
+      <fieldset class="seg"><legend data-t="langL">Language</legend><span class="thumb" aria-hidden="true"></span>
+        <label><input type="radio" name="lang" value="en" checked>EN</label><label><input type="radio" name="lang" value="ar">AR</label></fieldset>
+      <a class="btn small" href="#book" data-t="cta">Get my business running itself</a>
+      <button class="icon-btn menu-btn" id="menu" type="button" aria-expanded="false" aria-controls="mnav" aria-label="Menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+    </div>
+  </div>
+  <nav class="mnav" id="mnav" aria-label="Main">
+    <a href="#problem" data-t="n0">Why</a><a href="#services" data-t="n1">Services</a><a href="#compare" data-t="n6">Compare</a><a href="#work" data-t="n3">Work</a>
+    <a href="#how" data-t="n2">How we work</a><a href="#about" data-t="n4">About</a><a href="#faq" data-t="n5">FAQ</a>
+    <div class="row">
+      <button class="icon-btn" id="theme2" type="button" aria-label="Switch theme"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5"/></svg></button>
+      <fieldset class="seg"><legend data-t="langL">Language</legend><span class="thumb" aria-hidden="true"></span>
+        <label><input type="radio" name="lang2" value="en" checked>EN</label><label><input type="radio" name="lang2" value="ar">AR</label></fieldset>
+      <a class="btn small" href="#book" data-t="cta">Get my business running itself</a>
+    </div>
+  </nav>
+</header>
+
+<main id="top">
+  <svg id="route" aria-hidden="true"></svg>
+
+  <section class="hero boot" id="hero" aria-labelledby="h" data-sec="top">
+    <canvas id="circuit" aria-hidden="true"></canvas>
+    <div class="hero-in">
+      <h1 id="h"><span class="sr" id="h-full">Get the admin off your plate in 2 weeks, without hiring anyone.</span><span aria-hidden="true" id="h-vis"><span data-t="h1a">Get the</span> <span class="rot" id="rot">admin</span> <span data-t="h1b">off your plate in 2 weeks, without hiring anyone.</span></span><span class="scan" aria-hidden="true"></span></h1>
+      <p class="slogan" data-t="slogan">You run the business. We run the admin.</p>
+      <a class="btn" href="#book" data-t="cta">Get my business running itself</a>
+      <a class="cue" href="#story" id="cue" data-t="cue">Follow the signal</a>
+    </div>
+  </section>
+
+  <section class="board" id="story" aria-labelledby="h-story" data-sec="story">
+    <div class="board-in">
+      <h2 id="h-story" data-t="st_h">What changes when the admin runs itself</h2>
+      <svg id="chip" role="img" aria-labelledby="cap" data-phase="0"></svg>
+      <p class="cap" id="cap"></p>
+    </div>
+  </section>
+
+  <div class="flow" id="flow">
+    <section class="track" id="problem" aria-labelledby="h-problem" data-sec="problem" data-dwell="1.1"><div class="pnl panel-bg pins">
+      <span class="dock in" aria-hidden="true"><i></i></span><span class="dock out" aria-hidden="true"><i></i></span>
+      <h2 id="h-problem" class="st up" data-at="0" data-t="p_h">Admin is the bottleneck.</h2>
+      <p class="lead st up" data-at="0.1" data-t="p_l">In most growing businesses, every next step waits for one person: you.</p>
+      <div class="jams">
+        <div class="jam st pop" data-at="0.28" tabindex="0"><span class="led" aria-hidden="true"></span><span class="tag" data-t="p1t">Follow-ups</span><p class="pain" data-t="p1">Wait until someone remembers them.</p><p class="fix" data-t="p1f">Sent on time, automatically.</p></div>
+        <div class="jam st pop" data-at="0.44" tabindex="0"><span class="led" aria-hidden="true"></span><span class="tag" data-t="p2t">Clients</span><p class="pain" data-t="p2">Wait for answers and updates.</p><p class="fix" data-t="p2f">Updated at every step, on their own portal.</p></div>
+        <div class="jam st pop" data-at="0.6" tabindex="0"><span class="led" aria-hidden="true"></span><span class="tag" data-t="p3t">Your day</span><p class="pain" data-t="p3">Goes to work nobody pays for.</p><p class="fix" data-t="p3f">Back to clients and growth.</p></div>
+      </div>
+      <p class="hint st up" data-at="0.75" data-t="p_hint">Hover a task to see it handled.</p>
+    </div></section>
+
+    <section class="track" id="services" aria-labelledby="h-svc" data-sec="services" data-dwell="1.2"><div class="pnl panel-bg">
+      <span class="dock in" aria-hidden="true"><i></i></span><span class="dock out" aria-hidden="true"><i></i></span>
+      <div class="head2"><h2 id="h-svc" class="st side" data-at="0" data-t="s_h">What we build</h2><p class="lead st side" data-at="0.06" data-t="s_l">One team for the whole system, built around how your business already works.</p></div>
+      <div class="sockets2">
+        <div class="mod" data-at="0.16"><div class="m"><svg viewBox="0 0 44 44" aria-hidden="true"><rect class="d" x="6" y="6" width="32" height="32" rx="6"/><path class="t" d="M12 14h20M12 22h12M12 30h16"/></svg><b data-t="s1">Custom software</b><span data-t="s1d">Client portals, team dashboards, intake and approval flows.</span></div></div>
+        <div class="mod" data-at="0.3"><div class="m"><svg viewBox="0 0 44 44" aria-hidden="true"><rect class="d" x="6" y="6" width="32" height="32" rx="6"/><path class="t" d="M12 22h6l4-7 4 14 4-7h2"/></svg><b data-t="s2">Automations</b><span data-t="s2d">Follow-ups, reminders and reports that run on their own.</span></div></div>
+        <div class="mod" data-at="0.44"><div class="m"><svg viewBox="0 0 44 44" aria-hidden="true"><rect class="d" x="6" y="6" width="32" height="32" rx="6"/><path class="t" d="M22 12v6M22 26v6M12 22h6M26 22h6M22 18a4 4 0 1 0 0 8a4 4 0 1 0 0-8"/></svg><b data-t="s3">AI agents</b><span data-t="s3d">Agents that handle defined tasks, and AI connected to the tools you already use.</span></div></div>
+        <div class="mod" data-at="0.58"><div class="m"><svg viewBox="0 0 44 44" aria-hidden="true"><rect class="d" x="6" y="6" width="32" height="32" rx="6"/><path class="t" d="M6 15h32M13 22l-3 4 3 4M31 22l3 4-3 4M20 31l4-9"/></svg><b data-t="s4">Websites</b><span data-t="s4d">Fast, bilingual sites that connect to your systems.</span></div></div>
+        <div class="mod" data-at="0.72"><div class="m"><svg viewBox="0 0 44 44" aria-hidden="true"><rect class="d" x="6" y="6" width="32" height="32" rx="6"/><path class="t" d="M22 12l8 3v6c0 5-3.5 8-8 10c-4.5-2-8-5-8-10v-6z"/></svg><b data-t="s5">Backend and security</b><span data-t="s5d">Databases, logins and role-based access, so each person sees only their own work.</span></div></div>
+      </div>
+    </div></section>
+
+    <section class="track" id="compare" aria-labelledby="h-vs" data-sec="compare" data-dwell="1.3"><div class="pnl panel-bg pins">
+      <span class="dock in" aria-hidden="true"><i></i></span><span class="dock out" aria-hidden="true"><i></i></span>
+      <h2 id="h-vs" class="st up" data-at="0" data-t="v_h">How Widem compares</h2>
+      <p class="lead st up" data-at="0.05" data-t="v_l">Every option side by side.</p>
+      <div class="bench-grid" id="bench" role="table" aria-labelledby="h-vs"><span class="col-ours" id="col-ours" aria-hidden="true"></span><span class="probe" id="probe" aria-hidden="true"></span></div>
+      <p class="note2 st up" data-at="0.85" data-t="v_n">Marks show what's typical for each option, not every firm. Hover a row or a column to focus it.</p>
+    </div></section>
+
+    <section class="track" id="work" aria-labelledby="h-work" data-sec="work" data-dwell="1.6"><div class="pnl panel-bg pins">
+      <span class="dock in" aria-hidden="true"><i></i></span><span class="dock out" aria-hidden="true"><i></i></span>
+      <span class="kicker st side" data-at="0" data-t="w_k">Our previous work</span>
+      <h2 id="h-work" class="big st up" data-at="0.04" data-t="w_h">From spreadsheets to seconds.</h2>
+      <div class="client st side" data-at="0.16"><span class="logo" id="client-logo" aria-hidden="true">R</span><div><b id="client-name" data-t="w_t">A Riyadh career-services firm</b><span data-t="w_n">Resume writing, coaching and career services</span></div></div>
+      <p class="story st up" data-at="0.24" data-t="w_lead">We rebuilt their client journey, 11 steps from intake form to final delivery, so every step starts on its own.</p>
+      <svg class="scope" id="scope" data-at="0.32" viewBox="0 0 700 60" preserveAspectRatio="none" aria-hidden="true"><path d="M0 48 H60 L70 12 L80 48 H150 L160 24 L170 48 H240 L250 8 L260 48 H330 L340 18 L350 48 H420 L430 10 L440 48 H510 L520 26 L530 48 H600 L610 14 L620 48 H700"/></svg>
+      <div class="resgrid"><div class="stats">
+        <div class="stat st pop" data-at="0.42"><b><span data-count="11">0</span></b><span data-t="w_f1">steps automated, intake to delivery</span></div>
+        <div class="stat st pop" data-at="0.48"><b>~<span data-count="9">0</span><small data-t="sec"> s</small></b><span data-t="w_f2">until a new client gets a confirmation</span></div>
+        <div class="stat st pop" data-at="0.54"><b>~<span data-count="6">0</span><small data-t="sec2"> s</small></b><span data-t="w_f3">to notify client and expert once an expert is assigned</span></div>
+      </div>
+      <ul class="results">
+        <li class="st side" data-at="0.62" data-t="w_r1">A new client is confirmed in about 9 seconds, not whenever someone remembers to check the sheet.</li>
+        <li class="st side" data-at="0.68" data-t="w_r2">Once the owner assigns an expert, client and expert both know in about 6 seconds.</li>
+        <li class="st side" data-at="0.74" data-t="w_r3">An approved draft reaches the client in about 3.7 seconds; their feedback reaches the expert in about 2.5.</li>
+        <li class="st side" data-at="0.8" data-t="w_r4">The final version reaches the client in about 2.4 seconds.</li>
+        <li class="st side" data-at="0.86" data-t="w_r5">Clients get a portal, the team gets dashboards, and each expert sees only their own clients. In Arabic and English.</li>
+      </ul></div>
+      <p class="fnote st up" data-at="0.9" data-t="w_fn">Timings measured in live end-to-end testing, September 2026.</p>
+    </div></section>
+
+    <section class="track" id="how" aria-labelledby="h-how" data-sec="how" data-dwell="1.4"><div class="pnl panel-bg pins">
+      <span class="dock in" aria-hidden="true"><i></i></span><span class="dock out" aria-hidden="true"><i></i></span>
+      <h2 id="h-how" class="st drop" data-at="0" data-t="h_h">How we work</h2>
+      <ol class="stages" id="stages">
+        <li class="bus" aria-hidden="true"><i id="bus"></i></li>
+        <li class="stage" data-at="0.08"><span class="num">1</span><b data-t="h1t">Free 30-minute call</b><span data-t="h1d">We map your admin and agree what to take off your plate first.</span></li>
+        <li class="stage" data-at="0.28"><span class="num">2</span><b data-t="h2t">You send what we need</b><span data-t="h2d">Documents, access and how your work runs today.</span></li>
+        <li class="stage" data-at="0.48"><span class="num">3</span><b data-t="h3t">We build it</b><span data-t="h3d">Usually 1 to 2 weeks from here.</span></li>
+        <li class="stage" data-at="0.66"><span class="num">4</span><b data-t="h4t">You go live</b><span data-t="h4d">We walk your team through it and stay on hand for changes.</span></li>
+      </ol>
+    </div></section>
+
+    <section class="track" id="about" aria-labelledby="h-about" data-sec="about" data-dwell="0.8"><div class="pnl panel-bg pins">
+      <span class="dock in" aria-hidden="true"><i></i></span><span class="dock out" aria-hidden="true"><i></i></span>
+      <h2 id="h-about" class="st up" data-at="0" data-t="a_h">About</h2>
+      <div class="founder">
+        <div class="photo st pop" data-at="0.1"><span class="scanl" aria-hidden="true"></span><img src="assets/mohannad.png" width="150" height="150" alt="Mohannad Abdelrazek, founder of Widem" data-ta="a_alt"></div>
+        <div><strong class="st side" data-at="0.25" data-t="a_n">Mohannad Abdelrazek, founder</strong>
+          <p class="st side" data-at="0.4" data-t="a_p">I started Widem to give growing businesses the kind of systems big companies run on, built in weeks instead of months. You talk to me from the first call to launch.</p>
+          <a class="li st side" data-at="0.55" href="https://www.linkedin.com/in/muhannad-abdulrazek-b41707371/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.98 3.5a2.5 2.5 0 1 1 0 5a2.5 2.5 0 0 1 0-5zM3 9h4v12H3zM9 9h3.8v1.7h.05c.53-1 1.83-2.05 3.77-2.05C20.6 8.65 21 11.2 21 14.5V21h-4v-5.8c0-1.4-.03-3.2-1.95-3.2c-1.95 0-2.25 1.52-2.25 3.1V21H9z"/></svg><span data-t="a_l">LinkedIn</span></a></div>
+      </div>
+    </div></section>
+
+    <section class="track" id="faq" aria-labelledby="h-faq" data-sec="faq" data-dwell="1.1"><div class="pnl panel-bg pins">
+      <span class="dock in" aria-hidden="true"><i></i></span><span class="dock out" aria-hidden="true"><i></i></span>
+      <h2 id="h-faq" class="st up" data-at="0" data-t="f_h">Questions</h2>
+      <div class="qa">
+        <details class="st up" data-at="0.12"><summary><span data-t="q1">What does Widem do?</span><i aria-hidden="true"></i></summary><p class="ans" data-t="a1">Widem is a Saudi-based software and AI agency. We build custom software, automations and AI agents that take admin work off small and mid-sized businesses, plus the websites, backend and security around them.</p></details>
+        <details class="st up" data-at="0.26"><summary><span data-t="q2">How long does it take to build?</span><i aria-hidden="true"></i></summary><p class="ans" data-t="a2">Usually 1 to 2 weeks, counted from the day we have your documents and the information we need. We agree the scope on a free 30-minute call first.</p></details>
+        <details class="st up" data-at="0.4"><summary><span data-t="q3">How much does custom business software cost?</span><i aria-hidden="true"></i></summary><p class="ans" data-t="a3">It depends on what we build. After the free call you get a quote for your exact scope, before any work starts.</p></details>
+        <details class="st up" data-at="0.54"><summary><span data-t="q4">Do I have to replace the tools I already use?</span><i aria-hidden="true"></i></summary><p class="ans" data-t="a4">No. We can build around the tools you already use and connect them, or replace only the parts that slow you down.</p></details>
+        <details class="st up" data-at="0.68"><summary><span data-t="q5">Does it work in Arabic?</span><i aria-hidden="true"></i></summary><p class="ans" data-t="a5">Yes. Everything we build works in Arabic and English, with right-to-left layouts done properly, not just translated menus.</p></details>
+      </div>
+    </div></section>
+
+    <section class="track" id="book" aria-labelledby="h-book" data-sec="book"><div class="pnl panel-bg">
+      <span class="dock in" aria-hidden="true"><i></i></span>
+      <h2 id="h-book" data-t="b_h">Ready to take the admin off your plate?</h2>
+      <p class="lead" data-t="b_l">Tell us how your business runs today. We'll show you what we'd take off your plate first.</p>
+      <a class="btn" href="#book" data-t="cta">Get my business running itself</a>
+    </div></section>
+  </div>
+</main>
+
+<footer class="foot">
+  <div class="foot-in">
+    <div class="about">
+      <a class="brand" href="#top" aria-label="Widem, home"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="3"/><path d="M9 5V2M15 5V2M9 22v-3M15 22v-3M5 9H2M5 15H2M22 9h-3M22 15h-3"/></svg><span>Widem</span></a>
+      <p data-t="slogan">You run the business. We run the admin.</p>
+    </div>
+    <div><h4 data-t="fc1">Company</h4><ul><li><a href="#about" data-t="n4">About</a></li><li><a href="#work" data-t="n3">Work</a></li><li><a href="#how" data-t="n2">How we work</a></li><li><a href="#faq" data-t="n5">FAQ</a></li></ul></div>
+    <div><h4 data-t="fc2">Services</h4><ul><li><a href="#services" data-t="s1">Custom software</a></li><li><a href="#services" data-t="s2">Automations</a></li><li><a href="#services" data-t="s3">AI agents</a></li><li><a href="#services" data-t="s4">Websites</a></li><li><a href="#services" data-t="s5">Backend and security</a></li></ul></div>
+    <div><h4 data-t="fc3">Legal</h4><ul><li><a href="privacy.html" data-t="fl1">Privacy policy</a></li></ul></div>
+    <div><h4 data-t="fc4">Contact</h4><ul><li><a href="#book" data-t="fk1">Book a call</a></li><li><a href="https://www.linkedin.com/in/muhannad-abdulrazek-b41707371/" target="_blank" rel="noopener" data-t="a_l">LinkedIn</a></li></ul></div>
+  </div>
+  <div class="foot-bottom"><span data-t="ft">© 2026 Widem. Saudi Arabia.</span><span data-t="ft2">No cookies. No tracking.</span></div>
+</footer>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function store(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function css(n, fb) { var v = getComputedStyle(root).getPropertyValue(n).trim(); return v || fb; }
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  var NS = "http://www.w3.org/2000/svg";
+  /* The client is named only once Fatima has agreed (the quotation requires her permission first). Flip to true then. */
+  var CLIENT_NAMED = false, CLIENT = { en: "Kamin", ar: "كامن" };
+
+  var AR = {
+    n0: "لماذا", n1: "خدماتنا", n2: "كيف نعمل", n3: "أعمالنا", n4: "من نحن", n5: "الأسئلة", n6: "المقارنة", now: "أنت في:", langL: "اللغة",
+    cta: "اجعل عملك يدير نفسه", slogan: "أنت تدير عملك. ونحن ندير الإدارة.", cue: "اتبع الإشارة",
+    h1a: "تخلّص من", h1b: "خلال أسبوعين، دون توظيف أحد.", hFull: "تخلّص من الأعمال الإدارية خلال أسبوعين، دون توظيف أحد.",
+    st_h: "ما الذي يتغير حين تُدار الإدارة وحدها",
+    p_h: "الإدارة هي عنق الزجاجة.", p_l: "في أغلب الأعمال النامية، كل خطوة تالية تنتظر شخصًا واحدًا: أنت.",
+    p1t: "المتابعات", p1: "تنتظر حتى يتذكرها أحد.", p1f: "تُرسل في وقتها، تلقائيًا.", p2t: "العملاء", p2: "ينتظرون الردود والتحديثات.", p2f: "تحديث في كل خطوة، على بوابتهم.",
+    p3t: "يومك", p3: "يذهب في عمل لا يدفع لك أحد مقابله.", p3f: "يعود وقتك للعملاء والنمو.", p_hint: "مرّر على المهمة لترى كيف تُنجز.",
+    s_h: "ما نبنيه", s_l: "فريق واحد للنظام كله، مبني حول طريقة عملك الحالية.",
+    s1: "برمجيات مخصصة", s1d: "بوابات للعملاء، ولوحات للفريق، ونماذج تسجيل وموافقات.", s2: "الأتمتة", s2d: "متابعات وتذكيرات وتقارير تعمل وحدها.",
+    s3: "الوكلاء الأذكياء", s3d: "وكلاء ينجزون مهام محددة، وذكاء اصطناعي متصل بالأدوات التي تستخدمها.", s4: "المواقع", s4d: "مواقع سريعة ثنائية اللغة متصلة بأنظمتك.",
+    s5: "الخادم والأمان", s5d: "قواعد بيانات وتسجيل دخول وصلاحيات، فيرى كل شخص عمله فقط.",
+    v_h: "كيف نُقارَن", v_l: "كل الخيارات جنبًا إلى جنب.", v_n: "العلامات تعبّر عن المعتاد لكل خيار، لا عن كل شركة. مرّر على صف أو عمود لتركّز عليه.",
+    w_k: "أعمالنا السابقة", w_h: "من جداول البيانات إلى ثوانٍ.", w_lead: "أعدنا بناء رحلة عملائها، 11 خطوة من نموذج التسجيل حتى التسليم النهائي، لتبدأ كل خطوة من تلقاء نفسها.", sec2: " ث", w_r1: "يصل التأكيد إلى العميل الجديد خلال 9 ثوانٍ تقريبًا، لا حين يتذكر أحدهم مراجعة الجدول.", w_r2: "بمجرد أن يعيّن المالك الخبير، يعلم العميل والخبير خلال 6 ثوانٍ تقريبًا.", w_r3: "تصل المسودة المعتمدة إلى العميل خلال 3.7 ثانية تقريبًا، وتصل ملاحظاته إلى الخبير خلال 2.5 ثانية.", w_r4: "تصل النسخة النهائية إلى العميل خلال 2.4 ثانية تقريبًا.", w_r5: "بوابة للعملاء، ولوحات متابعة للفريق، وكل خبير لا يرى إلا عملاءه. بالعربية والإنجليزية.", w_fn: "قيست هذه الأوقات في اختبار تشغيلي كامل، سبتمبر 2026.", w_t: "شركة خدمات مهنية في الرياض", w_n: "كتابة السير الذاتية والتدريب والخدمات المهنية",
+    w_p1: "كانت رحلة عملائها تدار بجداول ومتابعات يدوية.", w_p2: "بنينا النظام الذي يديرها الآن: نماذج تسجيل، وبوابة للعملاء، ولوحات للفريق والخبراء،", w_p3: "وبريد تلقائي في كل خطوة، من أول نموذج حتى التسليم النهائي.",
+    w_f1: "خطوة مؤتمتة، من التسجيل حتى التسليم", w_f2: "حتى يصل التأكيد إلى العميل الجديد", w_f3: "لإبلاغ العميل والخبير بعد تعيين الخبير", sec: " ث",
+    w_s: "بُني واختُبر في سبتمبر 2026. الإطلاق في أكتوبر 2026.",
+    h_h: "كيف نعمل", h1t: "مكالمة مجانية لمدة 30 دقيقة", h1d: "نرسم أعمالك الإدارية ونتفق على ما نبدأ بأخذه عنك.", h2t: "ترسل لنا ما نحتاجه", h2d: "المستندات والصلاحيات وطريقة سير عملك اليوم.",
+    h3t: "نبنيه", h3d: "عادةً خلال أسبوع إلى أسبوعين من هنا.", h4t: "تنطلق", h4d: "نعرّف فريقك على النظام ونبقى معك لأي تعديل.",
+    a_h: "من نحن", a_n: "مهند عبد الرازق، المؤسس", a_alt: "مهند عبد الرازق، مؤسس Widem",
+    a_p: "أسست Widem لأمنح الأعمال النامية أنظمة كالتي تعمل بها الشركات الكبرى، تُبنى في أسابيع لا في شهور. تتحدث معي من أول مكالمة حتى الإطلاق.",
+    a_l: "لينكدإن", f_h: "أسئلة شائعة",
+    q1: "ماذا تقدم Widem؟", a1: "Widem وكالة برمجيات وذكاء اصطناعي مقرها السعودية. نبني برمجيات مخصصة وأتمتة ووكلاء أذكياء تأخذ الأعمال الإدارية عن الشركات الصغيرة والمتوسطة، إضافة إلى المواقع والخوادم والأمان المرتبط بها.",
+    q2: "كم يستغرق البناء؟", a2: "عادةً من أسبوع إلى أسبوعين، تُحسب من يوم استلام مستنداتك والمعلومات التي نحتاجها. نتفق على النطاق أولًا في مكالمة مجانية لمدة 30 دقيقة.",
+    q3: "كم تكلف البرمجيات المخصصة للأعمال؟", a3: "يعتمد ذلك على ما سنبنيه. بعد المكالمة المجانية تحصل على عرض سعر لنطاق عملك بالتحديد، قبل بدء أي عمل.",
+    q4: "هل يجب أن أستبدل الأدوات التي أستخدمها؟", a4: "لا. يمكننا البناء حول أدواتك الحالية وربطها، أو استبدال الأجزاء التي تبطئك فقط.",
+    q5: "هل يعمل بالعربية؟", a5: "نعم. كل ما نبنيه يعمل بالعربية والإنجليزية، مع اتجاه صحيح من اليمين إلى اليسار، لا مجرد قوائم مترجمة.",
+    b_h: "مستعد للتخلص من الأعمال الإدارية؟", b_l: "أخبرنا كيف يسير عملك اليوم، وسنريك ما سنأخذه عنك أولًا.",
+    fc1: "الشركة", fc2: "الخدمات", fc3: "قانوني", fc4: "تواصل", fl1: "سياسة الخصوصية", fk1: "احجز مكالمة",
+    ft: "© 2026 Widem. المملكة العربية السعودية.", ft2: "لا ملفات تعريف ارتباط. لا تتبّع."
+  };
+  var EN = {}, els = [].slice.call(document.querySelectorAll("[data-t]"));
+  els.forEach(function (e) { if (!(e.dataset.t in EN)) EN[e.dataset.t] = e.textContent; });
+  EN.hFull = document.getElementById("h-full").textContent; EN.a_alt = document.querySelector("[data-ta]").alt;
+  var SECS = { en: { top: "Widem", story: "The idea", problem: "The problem", services: "What we build", compare: "How we compare", work: "Our work", how: "How we work", about: "About", faq: "Questions", book: "Get started" },
+               ar: { top: "Widem", story: "الفكرة", problem: "المشكلة", services: "ما نبنيه", compare: "المقارنة", work: "أعمالنا", how: "كيف نعمل", about: "من نحن", faq: "الأسئلة", book: "ابدأ الآن" } };
+  var WORDS = { en: ["admin", "follow-ups", "paperwork", "scheduling", "reporting", "data entry"], ar: ["الأعمال الإدارية", "المتابعات", "الأوراق", "المواعيد", "التقارير", "إدخال البيانات"] };
+  var lang = root.lang === "ar" ? "ar" : "en";
+  function nameClient() {
+    var n = document.getElementById("client-name"), lg = document.getElementById("client-logo");
+    if (CLIENT_NAMED) { n.textContent = CLIENT[lang]; lg.textContent = lang === "ar" ? "ك" : "K"; } else lg.textContent = lang === "ar" ? "ر" : "R";
+  }
+
+  function isLight() { return root.getAttribute("data-theme") === "light"; }
+  function setTheme(t) {
+    root.setAttribute("data-theme", t); store("widem-theme", t);
+    document.getElementById("theme").setAttribute("aria-label", t === "light" ? (lang === "ar" ? "التبديل إلى الوضع الداكن" : "Switch to dark mode") : (lang === "ar" ? "التبديل إلى الوضع الفاتح" : "Switch to light mode"));
+    readBg();
+  }
+  ["theme", "theme2"].forEach(function (id) { document.getElementById(id).addEventListener("click", function () { setTheme(isLight() ? "dark" : "light"); }); });
+
+  /* header: the underline answers hover only; the readout shows where you are */
+  var head = document.getElementById("head"), nav = document.getElementById("nav"), sig = document.getElementById("nav-sig"), links = [].slice.call(nav.querySelectorAll("a"));
+  var readout = document.getElementById("readout"), curSec = "top";
+  function sigTo(a) { if (!a) { sig.style.opacity = 0; return; } var n = nav.getBoundingClientRect(), r = a.getBoundingClientRect(); sig.style.left = (r.left - n.left + 10) + "px"; sig.style.width = (r.width - 20) + "px"; sig.style.opacity = 1; }
+  links.forEach(function (a) { a.addEventListener("mouseenter", function () { sigTo(a); }); a.addEventListener("focus", function () { sigTo(a); }); a.addEventListener("blur", function () { sigTo(null); }); });
+  nav.addEventListener("mouseleave", function () { sigTo(null); });
+  function setReadout(k) { readout.textContent = SECS[lang][k] || "Widem"; readout.classList.remove("swap"); void readout.offsetWidth; readout.classList.add("swap"); }
+  var menu = document.getElementById("menu"), mnav = document.getElementById("mnav");
+  menu.addEventListener("click", function () { var o = mnav.classList.toggle("open"); menu.setAttribute("aria-expanded", o); });
+  mnav.addEventListener("click", function (e) { if (e.target.tagName === "A") { mnav.classList.remove("open"); menu.setAttribute("aria-expanded", "false"); } });
+
+  var rot = document.getElementById("rot"), wi = 0, rotTimer;
+  function rotate() { rot.classList.add("out"); setTimeout(function () { wi = (wi + 1) % WORDS[lang].length; rot.textContent = WORDS[lang][wi]; rot.classList.remove("out"); rot.classList.add("in"); setTimeout(function () { rot.classList.remove("in"); }, 460); }, 300); }
+  function startRot(delay) { clearInterval(rotTimer); wi = 0; rot.textContent = WORDS[lang][0]; if (!reduce) setTimeout(function () { clearInterval(rotTimer); rotTimer = setInterval(rotate, 2400); }, delay || 0); }
+
+  /* circuit background + power-on wave */
+  var cv = document.getElementById("circuit"), cx = cv.getContext("2d"), traces = [], pulses = [], W = 0, H = 0, G = 34, bgRaf, bgOn = true, BG = {}, wave0 = null;
+  function readBg() { BG.trace = css("--trace", "rgba(24,110,84,0.28)"); BG.node = css("--trace-node", "rgba(24,110,84,0.5)"); BG.pulse = css("--pulse", "47,211,158"); if (reduce) drawBg(); }
+  function rnd(n) { return Math.floor(Math.random() * n); }
+  function makeTraces() {
+    traces = []; pulses = [];
+    var cols = Math.ceil(W / G), rows = Math.ceil(H / G), count = Math.round((cols * rows) / 14);
+    for (var i = 0; i < count; i++) {
+      var x = rnd(cols), y = rnd(rows), pts = [[x, y]], dir = rnd(4), len = 3 + rnd(9);
+      for (var s = 0; s < len; s++) { if (Math.random() < 0.3) dir = (dir + (Math.random() < .5 ? 1 : 3)) % 4; x += [1,0,-1,0][dir]; y += [0,1,0,-1][dir]; pts.push([x, y]); }
+      var t = pts.map(function (p) { return [p[0] * G, p[1] * G]; }); t.d = Math.hypot(t[0][0] - W / 2, t[0][1] - H * 0.42); traces.push(t);
+    }
+    for (var k = 0; k < Math.min(30, traces.length); k++) pulses.push({ t: rnd(traces.length), p: Math.random(), v: 0.004 + Math.random() * 0.006 });
+  }
+  function sizeBg() { var D = Math.min(devicePixelRatio || 1, 2); W = cv.clientWidth; H = cv.clientHeight; cv.width = W * D; cv.height = H * D; cx.setTransform(D, 0, 0, D, 0, 0); makeTraces(); }
+  function pointAt(tr, p) { var n = tr.length - 1, f = p * n, i = Math.min(Math.floor(f), n - 1), r = f - i; return [tr[i][0] + (tr[i+1][0] - tr[i][0]) * r, tr[i][1] + (tr[i+1][1] - tr[i][1]) * r]; }
+  function drawBg(ts) {
+    cx.clearRect(0, 0, W, H); cx.lineWidth = 1;
+    var R = wave0 === null ? -1 : ((ts || performance.now()) - wave0) * 1.3;
+    traces.forEach(function (tr) {
+      var boost = R < 0 ? 0 : Math.max(0, 1 - Math.abs(tr.d - R) / 90);
+      cx.strokeStyle = boost > 0.02 ? "rgba(" + BG.pulse + "," + (0.25 + boost * 0.7) + ")" : BG.trace; cx.lineWidth = 1 + boost;
+      cx.beginPath(); cx.moveTo(tr[0][0], tr[0][1]); for (var i = 1; i < tr.length; i++) cx.lineTo(tr[i][0], tr[i][1]); cx.stroke();
+      cx.fillStyle = BG.node; cx.fillRect(tr[0][0] - 1.5, tr[0][1] - 1.5, 3, 3);
+    });
+    cx.lineWidth = 1;
+    pulses.forEach(function (pu) {
+      var tr = traces[pu.t]; if (!tr) return;
+      for (var j = 0; j < 7; j++) { var q = pu.p - j * 0.018; if (q < 0) break; var pt = pointAt(tr, q);
+        cx.fillStyle = "rgba(" + BG.pulse + "," + (0.8 - j * 0.11) + ")"; cx.beginPath(); cx.arc(pt[0], pt[1], j ? 1.6 : 2.2, 0, 6.283); cx.fill(); }
+      if (!reduce) { pu.p += pu.v; if (pu.p > 1) { pu.p = 0; pu.t = rnd(traces.length); } }
+    });
+    if (!reduce && bgOn) bgRaf = requestAnimationFrame(drawBg);
+  }
+  readBg(); sizeBg();
+  new IntersectionObserver(function (e) { var v = e[0].isIntersecting; if (v && !bgOn) { bgOn = true; if (!reduce) drawBg(); } else if (!v) { bgOn = false; cancelAnimationFrame(bgRaf); } }).observe(cv);
+  var hero = document.getElementById("hero");
+  function bootHero() {
+    if (reduce) { hero.classList.remove("boot"); drawBg(); startRot(0); return; }
+    drawBg(); wave0 = performance.now();
+    setTimeout(function () { hero.classList.remove("boot"); hero.classList.add("lit-on"); }, 380);
+    startRot(2600);
+  }
+
+  /* story chip */
+  var svg = document.getElementById("chip"), cap = document.getElementById("cap");
+  var TX = {
+    en: { tasks: ["Follow-ups", "Invoices", "Onboarding", "Scheduling", "Reports", "Approvals"], outs: ["Sent", "Paid", "Onboarded", "Booked", "Delivered", "Approved"],
+          you: "You", waiting: " waiting", focus: "Clients & growth", sub: "your system", c1: "Every task <b>waits on you</b>.", c2: "Your system <b>takes the admin</b>.", c3: "You <b>focus</b> on what matters." },
+    ar: { tasks: ["المتابعات", "الفواتير", "تسجيل العملاء", "المواعيد", "التقارير", "الموافقات"], outs: ["أُرسلت", "دُفعت", "سُجّل", "حُجز", "سُلّم", "اعتُمدت"],
+          you: "أنت", waiting: " بانتظارك", focus: "العملاء والنمو", sub: "نظامك", c1: "كل مهمة <b>تنتظرك</b>.", c2: "نظامك <b>يتولى</b> الإدارة.", c3: "وأنت <b>تركّز</b> على ما يهم." }
+  };
+  var Gm, routes, packets = [], waiting = 0, t0 = null, lastTs = 0, phase = 0, raf = null, lastSpawn = 0, lastDrain = 0, running = false;
+  function el(tag, a, parent) { var e = document.createElementNS(NS, tag); for (var k in a) e.setAttribute(k, a[k]); (parent || svg).appendChild(e); return e; }
+  function path(d, c) { return el("path", { d: d, "class": "trace " + (c || "") }); }
+  function layout() {
+    var tall = svg.parentNode.clientWidth < 620, rtl = lang === "ar", W2 = tall ? 400 : 1000, H2 = tall ? 700 : 430, g = { W: W2, H: H2, tall: tall, ins: [], outs: [] };
+    function mx(x) { return rtl ? W2 - x : x; }
+    if (!tall) {
+      g.die = { x: 410, y: 130, w: 180, h: 190 }; g.you = { x: 500, y: 48 };
+      for (var i = 0; i < 6; i++) {
+        var y = 105 + i * 46, pinY = 150 + i * 30, mid = 300 + (i % 3) * 22, mid2 = 700 - (i % 3) * 22;
+        g.ins.push({ lx: mx(196), ly: y + 5, anchor: rtl ? "start" : "end", d: "M" + mx(206) + " " + y + " H" + mx(mid) + " V" + pinY + " H" + mx(410), dy: "M" + mx(206) + " " + y + " H" + mx(250 + i * 9) + " V48 H" + mx(474), pin: [mx(410), pinY] });
+        g.outs.push({ lx: mx(806), ly: y + 5, anchor: rtl ? "end" : "start", d: "M" + mx(590) + " " + pinY + " H" + mx(mid2) + " V" + y + " H" + mx(796), pin: [mx(590), pinY] });
+      }
+      g.drain = "M500 74 V130";
+    } else {
+      g.die = { x: 110, y: 270, w: 180, h: 170 }; g.you = { x: 200, y: 195 };
+      for (var j = 0; j < 6; j++) {
+        var col = j % 2, row = Math.floor(j / 2), lx = col ? 290 : 110, ly = 40 + row * 34, px = 125 + j * 30, oly = 540 + row * 34 + 18;
+        g.ins.push({ lx: mx(lx), ly: ly, anchor: "middle", d: "M" + mx(lx) + " " + (ly + 8) + " V" + (132 + row * 6) + " H" + mx(px) + " V270", pin: [mx(px), 270], dy: "M" + mx(lx) + " " + (ly + 8) + " V" + (132 + row * 6) + " H" + mx(200) + " V169" });
+        g.outs.push({ lx: mx(lx), ly: oly, anchor: "middle", d: "M" + mx(px) + " 440 V" + (476 + row * 6) + " H" + mx(lx) + " V" + (oly - 14), pin: [mx(px), 440] });
+      }
+      g.drain = "M200 221 V270";
+    }
+    return g;
+  }
+  function build() {
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    Gm = layout(); var L = TX[lang], d = Gm.die;
+    svg.setAttribute("viewBox", "0 0 " + Gm.W + " " + Gm.H);
+    routes = { ins: [], you: [], outs: [] };
+    Gm.ins.forEach(function (r) { routes.ins.push(path(r.d)); routes.you.push(path(r.dy, "you")); });
+    Gm.outs.forEach(function (r) { routes.outs.push(path(r.d)); });
+    routes.drain = path(Gm.drain, "you");
+    el("rect", { x: d.x, y: d.y, width: d.w, height: d.h, rx: 12, "class": "die" });
+    var gr = el("g", { "class": "grid" });
+    for (var x = d.x + 20; x < d.x + d.w; x += 20) el("line", { x1: x, y1: d.y + 8, x2: x, y2: d.y + d.h - 8 }, gr);
+    for (var y = d.y + 20; y < d.y + d.h; y += 20) el("line", { x1: d.x + 8, y1: y, x2: d.x + d.w - 8, y2: y }, gr);
+    Gm.ins.concat(Gm.outs).forEach(function (r) { el("rect", { x: r.pin[0] - 4, y: r.pin[1] - 4, width: 8, height: 8, rx: 2, "class": "pin" }); });
+    el("text", { x: d.x + d.w / 2, y: d.y + d.h / 2 + 4, "text-anchor": "middle", "class": "chip-name" }).textContent = "Widem";
+    el("text", { x: d.x + d.w / 2, y: d.y + d.h / 2 + 26, "text-anchor": "middle", "class": "chip-sub" }).textContent = L.sub;
+    Gm.ins.forEach(function (r, i) { el("text", { x: r.lx, y: r.ly, "text-anchor": r.anchor, "class": "lbl" }).textContent = L.tasks[i]; });
+    Gm.outLbl = Gm.outs.map(function (r, i) { var t = el("text", { x: r.lx, y: r.ly, "text-anchor": r.anchor, "class": "out" }); t.textContent = "✓ " + L.outs[i]; return t; });
+    el("circle", { cx: Gm.you.x, cy: Gm.you.y, r: 26, "class": "you-ring" });
+    el("text", { x: Gm.you.x, y: Gm.you.y + 5, "text-anchor": "middle", "class": "you-txt" }).textContent = L.you;
+    var side = lang === "ar" ? -40 : 40, anc = Gm.tall ? "middle" : (lang === "ar" ? "end" : "start"), cx2 = Gm.you.x + (Gm.tall ? 0 : side), cy2 = Gm.you.y + (Gm.tall ? -34 : 5);
+    Gm.count = el("text", { x: cx2, y: cy2, "text-anchor": anc, "class": "you-count" });
+    el("text", { x: cx2, y: cy2, "text-anchor": anc, "class": "you-focus" }).textContent = L.focus;
+    Gm.layer = el("g", {});
+  }
+  function spawn(route, color, done, v) { var c = el("circle", { r: 4.5, fill: color, "class": "pk", style: "color:" + color }, Gm.layer); packets.push({ el: c, route: route, len: route.getTotalLength(), s: 0, v: v || 0.32, done: done }); }
+  function setCap(k) { cap.style.opacity = 0; setTimeout(function () { cap.innerHTML = TX[lang][k]; cap.style.opacity = 1; }, 200); }
+  function setPhase(p) { phase = p; svg.dataset.phase = p; svg.classList.toggle("on", p >= 2); if (p) setCap("c" + p); }
+  function hitOut(i) { var t = Gm.outLbl[i]; t.classList.add("hit"); setTimeout(function () { t.classList.remove("hit"); }, 700); }
+  function showCount() { Gm.count.textContent = waiting ? waiting + TX[lang].waiting : ""; }
+  function frame(ts) {
+    if (t0 === null) { t0 = ts; lastTs = ts; }
+    var dt = Math.min(ts - lastTs, 50); lastTs = ts;
+    var t = (ts - t0) % 12500, GREEN = css("--action-bright", "#2FD39E"), WARN = css("--warn", "#E07A5F"), GOLD = css("--signal", "#E8B03A");
+    if (t < 40 && phase !== 1) { packets.forEach(function (p) { p.el.remove(); }); packets = []; waiting = 0; showCount(); setPhase(1); }
+    if (t >= 4200 && phase === 1) setPhase(2);
+    if (t >= 8600 && phase === 2) setPhase(3);
+    var gap = phase === 1 ? 260 : phase === 2 ? 220 : 520;
+    if (ts - lastSpawn > gap && t < 12000) {
+      lastSpawn = ts; var i = Math.floor(Math.random() * 6);
+      if (phase === 1) spawn(routes.you[i], WARN, function () { waiting++; showCount(); }, 0.36);
+      else spawn(routes.ins[i], GREEN, function () { setTimeout(function () { if (running) spawn(routes.outs[i], GREEN, function () { hitOut(i); }); }, 160); });
+    }
+    if (phase >= 2 && waiting > 0 && ts - lastDrain > 170) { lastDrain = ts; waiting--; showCount(); var k = Math.floor(Math.random() * 6); spawn(routes.drain, GOLD, function () { spawn(routes.outs[k], GREEN, function () { hitOut(k); }); }, 0.5); }
+    for (var n = packets.length - 1; n >= 0; n--) {
+      var p = packets[n]; p.s += p.v * dt; var pos = Math.min(p.s, p.len), pt = p.route.getPointAtLength(pos);
+      p.el.setAttribute("cx", pt.x); p.el.setAttribute("cy", pt.y);
+      if (pos >= p.len) { p.el.remove(); packets.splice(n, 1); if (p.done) p.done(); }
+    }
+    raf = requestAnimationFrame(frame);
+  }
+  function startChip() { if (running) return; running = true; if (reduce) { setPhase(3); Gm.outLbl.forEach(function (t) { t.classList.add("hit"); }); return; } t0 = null; phase = 0; raf = requestAnimationFrame(frame); }
+  function stopChip() { running = false; cancelAnimationFrame(raf); packets.forEach(function (p) { p.el.remove(); }); packets = []; }
+  build();
+  new IntersectionObserver(function (e) { e[0].isIntersecting ? startChip() : stopChip(); }, { threshold: 0.15 }).observe(svg);
+
+  /* compare bench */
+  var OPTS = [["Big software houses", "Big firms", "شركات البرمجة الكبرى", "الكبرى"], ["Freelancers", "Freelance", "المستقلون", "المستقلون"], ["No-code & automation agencies", "No-code", "وكالات الأتمتة بلا برمجة", "بلا برمجة"], ["Off-the-shelf SaaS", "SaaS", "الاشتراكات الجاهزة", "الجاهزة"]];
+  var CRIT = [
+    ["Custom-built around your process", "", "مبني حول طريقة عملك", "", [1, 1, 0, 0]],
+    ["Software, AI agents, web and backend from one team", "", "البرمجيات والوكلاء الأذكياء والويب والخادم من فريق واحد", "", [1, 0, 0, 0]],
+    ["Live in about 2 weeks", "once we have your documents", "جاهز خلال أسبوعين تقريبًا", "بعد استلام مستنداتك", [0, 1, 1, 1]],
+    ["Security and role-based access built in", "", "الأمان والصلاحيات مدمجة من البداية", "", [1, 0, 0, 1]],
+    ["You talk to the person who builds it", "", "تتحدث مع من يبني نظامك", "", [0, 1, 0, 0]]
+  ];
+  var bench = document.getElementById("bench"), colOurs = document.getElementById("col-ours"), probe = document.getElementById("probe"), benchCols = -1;
+  function cell(v, ours, r, c) { return '<span class="bg-c" role="cell" data-r="' + r + '" data-c="' + c + '"><span class="led2 ' + (v ? "yes" : "no") + (ours ? " ours" : "") + '"><svg aria-hidden="true"><use href="#' + (v ? "yes" : "no") + '"/></svg><span class="sr">' + (v ? (lang === "ar" ? "نعم" : "Yes") : (lang === "ar" ? "لا" : "No")) + "</span></span></span>"; }
+  function renderBench() {
+    var ar = lang === "ar", h = '<span class="bg-h bg-corner" role="columnheader"></span>';
+    OPTS.forEach(function (o, i) { h += '<span class="bg-h" role="columnheader" data-c="' + i + '"><span class="lg">' + (ar ? o[2] : o[0]) + '</span><span class="sh">' + (ar ? o[3] : o[1]) + "</span></span>"; });
+    h += '<span class="bg-h ours" role="columnheader" data-c="4">Widem</span>';
+    CRIT.forEach(function (c, r) { var sub = ar ? c[3] : c[1];
+      h += '<span class="bg-r" role="rowheader" data-r="' + r + '">' + (ar ? c[2] : c[0]) + (sub ? "<small>" + sub + "</small>" : "") + "</span>";
+      c[4].forEach(function (v, i) { h += cell(v, false, r, i); }); h += cell(1, true, r, 4); });
+    [].slice.call(bench.querySelectorAll(".bg-h,.bg-r,.bg-c")).forEach(function (n) { n.remove(); });
+    bench.insertAdjacentHTML("beforeend", h); placeOurs(); var k = benchCols; benchCols = -2; benchAt(k);
+  }
+  function placeOurs() { var hd = bench.querySelector('.bg-h[data-c="4"]'); if (!hd) return; var b = bench.getBoundingClientRect(), r = hd.getBoundingClientRect(); colOurs.style.left = (r.left - b.left) + "px"; colOurs.style.width = r.width + "px"; }
+  function benchAt(n) {
+    if (n === benchCols) return; benchCols = n;
+    [].slice.call(bench.querySelectorAll(".bg-c")).forEach(function (c) { c.classList.toggle("lit", +c.dataset.c <= n); });
+    bench.classList.toggle("w", n >= 4);
+    var hd = n >= 0 && n < 4 ? bench.querySelector('.bg-h[data-c="' + n + '"]') : null;
+    if (hd) { var b = bench.getBoundingClientRect(), r = hd.getBoundingClientRect(); probe.style.left = (r.left - b.left + r.width / 2) + "px"; probe.style.opacity = 1; } else probe.style.opacity = 0;
+  }
+  bench.addEventListener("mouseover", function (e) { var t = e.target.closest("[data-r],[data-c]"); if (!t) return; var r = t.dataset.r, c = t.dataset.c; bench.classList.add("hl");
+    [].slice.call(bench.querySelectorAll(".bg-c,.bg-h,.bg-r")).forEach(function (n) { n.classList.toggle("hot", (r != null && n.dataset.r === r) || (c != null && n.dataset.c === c)); }); });
+  bench.addEventListener("mouseleave", function () { bench.classList.remove("hl"); [].slice.call(bench.querySelectorAll(".hot")).forEach(function (n) { n.classList.remove("hot"); }); });
+
+  var jams = [].slice.call(document.querySelectorAll(".jam")), ji = -1;
+  if (!matchMedia("(hover: hover)").matches && !reduce) setInterval(function () { jams.forEach(function (j) { j.classList.remove("auto"); }); ji = (ji + 1) % (jams.length + 1); if (jams[ji]) jams[ji].classList.add("auto"); }, 1800);
+
+  /* sections: pin, dwell, stages, harbours */
+  var mainEl = document.getElementById("top"), tracks = [].slice.call(document.querySelectorAll(".track"));
+  var T = tracks.map(function (s) { return { s: s, p: s.querySelector(".pnl"), din: s.querySelector(".dock.in"), dout: s.querySelector(".dock.out"), stages: [].slice.call(s.querySelectorAll("[data-at]")), dwell: parseFloat(s.dataset.dwell || 0), pin: false, top: 0, dockX: 0 }; });
+  function layoutTracks() {
+    var vh = innerHeight, desktop = mainEl.clientWidth >= 900 && !reduce;
+    T.forEach(function (t) {
+      t.s.style.height = ""; t.s.classList.remove("pinned"); t.p.style.top = "";
+      var ph = t.p.offsetHeight;
+      t.pin = desktop && t.dwell > 0 && ph < vh - 110;
+      if (t.pin) { t.top = Math.max(96, (vh - ph) / 2); t.s.classList.add("pinned"); t.p.style.top = t.top + "px"; t.s.style.height = (ph + vh * t.dwell) + "px"; }
+      var w = t.p.offsetWidth, x = mainEl.clientWidth < 900 ? (root.dir === "rtl" ? w - 30 : 30) : w / 2;
+      t.dockX = x; [t.din, t.dout].forEach(function (d) { if (d) d.style.left = x + "px"; });
+    });
+  }
+
+  /* the route: one line, straight down through every track, behind each chip, between its harbours */
+  var rsvg = document.getElementById("route"), R = { lit: null, ship: null, len: 0, samples: [] };
+  function relM(e) { var a = e.getBoundingClientRect(), b = mainEl.getBoundingClientRect(); return { x: a.left - b.left, y: a.top - b.top, w: a.width, h: a.height }; }
+  function rounded(pts, r) {
+    var d = "M" + pts[0][0] + " " + pts[0][1];
+    for (var i = 1; i < pts.length - 1; i++) {
+      var p0 = pts[i - 1], p1 = pts[i], p2 = pts[i + 1], d1 = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]), d2 = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]), rr = Math.min(r, d1 / 2, d2 / 2);
+      if (!rr) { d += " L" + p1[0] + " " + p1[1]; continue; }
+      var a = [p1[0] - (p1[0] - p0[0]) / d1 * rr, p1[1] - (p1[1] - p0[1]) / d1 * rr], b = [p1[0] + (p2[0] - p1[0]) / d2 * rr, p1[1] + (p2[1] - p1[1]) / d2 * rr];
+      d += " L" + a[0] + " " + a[1] + " Q" + p1[0] + " " + p1[1] + " " + b[0] + " " + b[1];
+    }
+    var last = pts[pts.length - 1]; return d + " L" + last[0] + " " + last[1];
+  }
+  function buildRoute() {
+    while (rsvg.firstChild) rsvg.removeChild(rsvg.firstChild);
+    var mw = mainEl.clientWidth, cue = relM(document.getElementById("cue")), story = relM(document.getElementById("story")), pts = [];
+    pts.push([mw / 2, cue.y + cue.h + 18]);
+    pts.push([mw / 2, story.y + story.h + 60]);
+    T.forEach(function (t, i) {
+      var tr = relM(t.s), x = relM(t.p).x + t.dockX, prev = pts[pts.length - 1], turn = tr.y - 110;
+      if (Math.abs(prev[0] - x) > 1) { pts.push([prev[0], turn]); pts.push([x, turn]); }
+      pts.push([x, tr.y + tr.h + (t.dout ? 60 : 0)]);
+    });
+    var d = rounded(pts, 26);
+    var base = document.createElementNS(NS, "path"); base.setAttribute("d", d); base.setAttribute("class", "base"); rsvg.appendChild(base);
+    R.lit = document.createElementNS(NS, "path"); R.lit.setAttribute("d", d); R.lit.setAttribute("class", "lit"); rsvg.appendChild(R.lit);
+    var plug = document.createElementNS(NS, "rect"); plug.setAttribute("x", pts[0][0] - 6); plug.setAttribute("y", pts[0][1] - 6); plug.setAttribute("width", 12); plug.setAttribute("height", 12); plug.setAttribute("rx", 3); plug.setAttribute("class", "plug"); rsvg.appendChild(plug);
+    R.ship = document.createElementNS(NS, "rect"); R.ship.setAttribute("width", 11); R.ship.setAttribute("height", 11); R.ship.setAttribute("rx", 2.5); R.ship.setAttribute("class", "ship"); rsvg.appendChild(R.ship);
+    R.len = R.lit.getTotalLength(); R.lit.style.strokeDasharray = R.len; R.samples = [];
+    for (var l = 0; l <= R.len; l += 12) R.samples.push([l, R.lit.getPointAtLength(l)]);
+    R.samples.push([R.len, R.lit.getPointAtLength(R.len)]);
+    placeOurs(); update();
+  }
+  function relayout() { var y = scrollY; scrollTo(0, 0); layoutTracks(); buildRoute(); scrollTo(0, y); update(); }
+
+  /* one scroll engine */
+  var queued = false, order = ["top", "story", "problem", "services", "compare", "work", "how", "about", "faq", "book"];
+  function countUp(sec) {
+    [].slice.call(sec.querySelectorAll("[data-count]")).forEach(function (n) {
+      if (n.dataset.done) return; n.dataset.done = 1; var to = +n.dataset.count, s0 = performance.now();
+      if (reduce) { n.textContent = to; return; }
+      (function tick(ts) { var p = Math.min((ts - s0) / 900, 1); n.textContent = Math.round(to * (1 - Math.pow(1 - p, 3))); if (p < 1) requestAnimationFrame(tick); })(s0);
+    });
+  }
+  function update() {
+    queued = false;
+    var vh = innerHeight, atEnd = innerHeight + scrollY >= root.scrollHeight - 4, mark = vh * 0.62;
+    head.classList.toggle("solid", scrollY > 24);
+    T.forEach(function (t) {
+      var sr = t.s.getBoundingClientRect(), pr = t.p.getBoundingClientRect();
+      var pin = reduce ? 1 : clamp((vh - pr.top) / (vh - (t.pin ? t.top : vh * 0.4)), 0, 1);
+      var pout = reduce ? 0 : clamp(1 - pr.bottom / (vh * 0.42), 0, 1);
+      var p = reduce ? 1 : t.pin ? clamp((t.top - sr.top) / Math.max(sr.height - pr.height, 1), 0, 1) : clamp((vh * 0.85 - pr.top) / Math.max(pr.height, 1), 0, 1);
+      var arrived = pr.top < mark || reduce, gone = pr.bottom < mark && !reduce;
+      if (t.s.id === "book" && atEnd) { pin = 1; p = 1; arrived = true; }
+      if (!arrived) p = 0;
+      t.s.style.setProperty("--in", pin.toFixed(3)); t.s.style.setProperty("--out", pout.toFixed(3));
+      t.s.classList.toggle("on", arrived);
+      if (t.din) { t.din.classList.toggle("lit", arrived); t.din.classList.toggle("docked", arrived && !gone); }
+      if (t.dout) { var was = t.dout.classList.contains("lit"); t.dout.classList.toggle("lit", gone); if (gone && !was) { t.dout.classList.remove("go"); void t.dout.offsetWidth; t.dout.classList.add("go"); } if (!gone) t.dout.classList.remove("go"); }
+      t.stages.forEach(function (e) { e.classList.toggle("on", arrived && p >= parseFloat(e.dataset.at)); });
+      if (t.s.id === "work" && p >= 0.42) countUp(t.s);
+      if (t.s.id === "compare") benchAt(!arrived ? -1 : reduce ? 4 : Math.min(4, Math.floor((p - 0.12) / 0.14)));
+      if (t.s.id === "how") { var st = [].slice.call(t.s.querySelectorAll(".stage")), n = st.filter(function (e) { return e.classList.contains("on"); }).length;
+        st.forEach(function (e, i) { e.classList.toggle("cur", i === n - 1); }); document.getElementById("stages").style.setProperty("--done", Math.max(0, (n - 1) / 3)); }
+    });
+    if (R.lit) {
+      var mr = mainEl.getBoundingClientRect(), markY = atEnd || reduce ? Infinity : mark - mr.top, L = 0, pt = R.samples[0][1];
+      for (var i = 0; i < R.samples.length; i++) { if (R.samples[i][1].y <= markY) { L = R.samples[i][0]; pt = R.samples[i][1]; } else break; }
+      R.lit.style.strokeDashoffset = R.len - L;
+      R.ship.setAttribute("x", pt.x - 5.5); R.ship.setAttribute("y", pt.y - 5.5); R.ship.style.opacity = L > 2 && L < R.len - 2 ? 1 : 0;
+    }
+    var key = "top"; order.forEach(function (id) { var s = document.querySelector('[data-sec="' + id + '"]'); if (s && s.getBoundingClientRect().top <= vh * 0.4) key = id; });
+    if (key !== curSec) { curSec = key; setReadout(key); links.forEach(function (a) { a.classList.toggle("here", a.getAttribute("href") === "#" + key); }); }
+  }
+  addEventListener("scroll", function () { if (!queued) { queued = true; requestAnimationFrame(update); } }, { passive: true });
+  var rt, wasTall;
+  addEventListener("resize", function () { clearTimeout(rt); rt = setTimeout(function () { sizeBg(); if (reduce) drawBg(); relayout();
+    if ((svg.parentNode.clientWidth < 620) !== wasTall) { stopChip(); build(); wasTall = Gm.tall; startChip(); } }, 200); });
+
+  function applyLang(l, save) {
+    lang = l; var D = l === "ar" ? AR : EN;
+    root.lang = l; root.dir = l === "ar" ? "rtl" : "ltr"; if (save) store("widem-lang", l);
+    els.forEach(function (e) { if (D[e.dataset.t] != null) e.textContent = D[e.dataset.t]; });
+    document.getElementById("h-full").textContent = D.hFull || EN.hFull; document.querySelector("[data-ta]").alt = D.a_alt || EN.a_alt;
+    [].slice.call(document.querySelectorAll('input[name="lang"], input[name="lang2"]')).forEach(function (r) { r.checked = r.value === l; });
+    nameClient(); startRot(0); renderBench(); stopChip(); build(); startChip(); setReadout(curSec);
+    requestAnimationFrame(relayout);
+    setTheme(isLight() ? "light" : "dark");
+  }
+  [].slice.call(document.querySelectorAll('input[name="lang"], input[name="lang2"]')).forEach(function (r) { r.addEventListener("change", function () { if (r.checked) applyLang(r.value, true); }); });
+
+  (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(function () {
+    wasTall = Gm.tall; nameClient(); renderBench();
+    if (lang === "ar") applyLang("ar", false); else { relayout(); setTheme(isLight() ? "light" : "dark"); }
+    bootHero(); update();
+  });
+})();
+</script>
+</body>
+</html>

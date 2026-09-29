@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy policy · Widem</title>
+<meta name="description" content="How the Widem website handles your data: no forms, no cookies, no tracking.">
+<script>(function () { try { var t = localStorage.getItem("widem-theme"), l = localStorage.getItem("widem-lang"), r = document.documentElement;
+  if (t === "light" || t === "dark") r.setAttribute("data-theme", t); if (l === "ar") { r.lang = "ar"; r.dir = "rtl"; } } catch (e) {} })();</script>
+<link rel="stylesheet" href="tokens.css">
+<script src="cursor.js" defer></script>
+<style>
+  .top { max-width: 900px; margin: 0 auto; padding: 18px var(--gutter); display: flex; align-items: center; gap: 14px; }
+  .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.2rem; text-decoration: none; color: var(--ink); margin-inline-end: auto; }
+  .brand svg { width: 22px; height: 22px; } .brand rect { fill: var(--die); stroke: var(--action-bright); stroke-width: 1.6; } .brand path { stroke: var(--action-bright); stroke-width: 1.4; }
+  .icon-btn { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--die-line); background: transparent; color: var(--ink); cursor: pointer; }
+  .icon-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+  .seg { position: relative; display: inline-grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--die-line); border-radius: 10px; padding: 3px; margin: 0; }
+  .seg legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .seg label { position: relative; z-index: 1; padding: 5px 10px; font-size: .8rem; font-weight: 600; color: var(--ink-soft); cursor: pointer; }
+  .seg input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+  .seg label:has(input:checked) { color: var(--action-ink); }
+  .seg .thumb { position: absolute; top: 3px; bottom: 3px; width: calc(50% - 3px); inset-inline-start: 3px; border-radius: 7px; background: var(--action); transition: transform .3s; }
+  .seg:has(input[value="ar"]:checked) .thumb { transform: translateX(100%); } [dir="rtl"] .seg:has(input[value="ar"]:checked) .thumb { transform: translateX(-100%); }
+  main { max-width: 900px; margin: 0 auto; padding: 24px var(--gutter) 80px; }
+  .chipbox { position: relative; padding: 44px 44px 40px; border-radius: 20px; border: 1px solid color-mix(in srgb, var(--action-bright) 60%, transparent); background: var(--surface); box-shadow: 0 20px 60px -30px var(--glow); }
+  .chipbox::before, .chipbox::after { content: ""; position: absolute; inset-inline: 36px; height: 7px; background: repeating-linear-gradient(90deg, var(--action-bright) 0 10px, transparent 10px 24px); }
+  .chipbox::before { top: -8px; } .chipbox::after { bottom: -8px; }
+  h1 { font-size: var(--t-xl); margin: 0 0 8px; letter-spacing: -0.02em; } [dir="rtl"] h1 { letter-spacing: 0; }
+  h2 { font-size: 1.15rem; margin: 30px 0 8px; color: var(--action-bright); }
+  p, li { color: var(--ink-soft); max-width: 66ch; }
+  .meta { font-size: var(--t-sm); display: grid; gap: 2px; margin-bottom: 8px; }
+  .need { color: var(--warn); font-weight: 500; }
+  .back { display: inline-block; margin-top: 28px; color: var(--action-bright); }
+  .draft { display: inline-block; margin-bottom: 18px; padding: 4px 10px; border-radius: 999px; font-size: var(--t-sm); color: var(--warn); border: 1px solid var(--warn); }
+  [data-l] { display: none; } :root[lang="en"] [data-l="en"], :root[lang="ar"] [data-l="ar"] { display: block; }
+  @media (max-width: 600px) { .chipbox { padding: 32px 22px; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="index.html"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="3"/><path d="M9 5V2M15 5V2M9 22v-3M15 22v-3M5 9H2M5 15H2M22 9h-3M22 15h-3"/></svg>Widem</a>
+  <button class="icon-btn" id="theme" type="button" aria-label="Switch theme"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5"/></svg></button>
+  <fieldset class="seg"><legend>Language</legend><span class="thumb" aria-hidden="true"></span>
+    <label><input type="radio" name="lang" value="en" checked>EN</label><label><input type="radio" name="lang" value="ar">AR</label></fieldset>
+</header>
+<main>
+  <article class="chipbox" data-l="en">
+    <span class="draft">Draft for review, not yet published</span>
+    <h1>Privacy policy</h1>
+    <div class="meta"><p>Widem · <span class="need">[legal entity name and CR number, if registered]</span></p><p>Contact: <span class="need">[contact email]</span></p><p>Effective: <span class="need">[date]</span></p></div>
+    <p>This website is a presentation page hosted on GitHub Pages (widem-ai.github.io). It has no accounts and no forms, runs no analytics, and sets no cookies of its own.</p>
+    <h2>What this site stores</h2>
+    <p>Your theme (light or dark) and language are saved in your browser's local storage, so the site remembers them next time. This stays on your device and is never sent to Widem or anyone else.</p>
+    <h2>Services the site relies on</h2>
+    <ul>
+      <li><b>Fonts:</b> loaded from Google Fonts. Your browser requests them from Google, so Google sees your IP address. Google's privacy policy applies.</li>
+      <li><b>Hosting:</b> GitHub Pages logs visitor IP addresses as part of normal hosting. GitHub's privacy statement applies.</li>
+      <li><b>Booking a call:</b> the booking buttons open Calendly, a separate scheduling service. If you book, you give your name and email to Calendly, under Calendly's privacy policy. Widem receives these details from Calendly only to hold the call you booked.</li>
+    </ul>
+    <h2>Your rights</h2>
+    <p>Under Saudi Arabia's Personal Data Protection Law (PDPL), you have the right to be informed, to access, correct or delete your personal data, to withdraw consent, and to complain to the Saudi Data &amp; AI Authority (SDAIA). For anything Widem holds about you, contact <span class="need">[contact email]</span>.</p>
+    <h2>Changes</h2>
+    <p>If the site changes how it handles data, this page is updated and the effective date changes with it.</p>
+    <a class="back" href="index.html">Back to Widem</a>
+  </article>
+  <article class="chipbox" data-l="ar">
+    <span class="draft">مسودة للمراجعة، لم تُنشر بعد</span>
+    <h1>سياسة الخصوصية</h1>
+    <div class="meta"><p>Widem · <span class="need">[الاسم القانوني ورقم السجل التجاري إن وُجد]</span></p><p>للتواصل: <span class="need">[البريد الإلكتروني]</span></p><p>تاريخ السريان: <span class="need">[التاريخ]</span></p></div>
+    <p>هذا الموقع صفحة تعريفية مستضافة على GitHub Pages (widem-ai.github.io). لا يحتوي على حسابات أو نماذج، ولا يشغّل أدوات تحليل، ولا يضع ملفات تعريف ارتباط خاصة به.</p>
+    <h2>ما يحفظه الموقع</h2>
+    <p>يُحفظ اختيارك للمظهر (فاتح أو داكن) واللغة في التخزين المحلي لمتصفحك ليتذكرهما الموقع لاحقًا. تبقى هذه المعلومات على جهازك ولا تُرسل إلى Widem أو إلى أي جهة أخرى.</p>
+    <h2>الخدمات التي يعتمد عليها الموقع</h2>
+    <ul>
+      <li><b>الخطوط:</b> تُحمَّل من Google Fonts، فيرى Google عنوان IP الخاص بك. تنطبق سياسة خصوصية Google.</li>
+      <li><b>الاستضافة:</b> تسجّل GitHub Pages عناوين IP للزوار ضمن الاستضافة المعتادة. ينطبق بيان خصوصية GitHub.</li>
+      <li><b>حجز مكالمة:</b> أزرار الحجز تفتح Calendly، وهي خدمة جدولة مستقلة. عند الحجز تزوّد Calendly باسمك وبريدك وفق سياستها. تستلم Widem هذه البيانات من Calendly فقط لإتمام المكالمة التي حجزتها.</li>
+    </ul>
+    <h2>حقوقك</h2>
+    <p>وفق نظام حماية البيانات الشخصية في المملكة، يحق لك العلم، والوصول إلى بياناتك وتصحيحها أو حذفها، وسحب الموافقة، وتقديم شكوى إلى الهيئة السعودية للبيانات والذكاء الاصطناعي (سدايا). لأي بيانات تحتفظ بها Widem عنك، تواصل عبر <span class="need">[البريد الإلكتروني]</span>.</p>
+    <h2>التعديلات</h2>
+    <p>إذا تغيّرت طريقة تعامل الموقع مع البيانات، تُحدَّث هذه الصفحة ويتغير تاريخ السريان معها.</p>
+    <a class="back" href="index.html">العودة إلى Widem</a>
+  </article>
+</main>
+<script>
+(function () {
+  var r = document.documentElement;
+  function store(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  document.getElementById("theme").addEventListener("click", function () { var t = r.getAttribute("data-theme") === "light" ? "dark" : "light"; r.setAttribute("data-theme", t); store("widem-theme", t); });
+  var radios = [].slice.call(document.querySelectorAll('input[name="lang"]'));
+  radios.forEach(function (x) { x.checked = x.value === (r.lang === "ar" ? "ar" : "en");
+    x.addEventListener("change", function () { if (!x.checked) return; r.lang = x.value; r.dir = x.value === "ar" ? "rtl" : "ltr"; store("widem-lang", x.value);
+      document.title = x.value === "ar" ? "سياسة الخصوصية · Widem" : "Privacy policy · Widem"; }); });
+})();
+</script>
+</body>
+</html>

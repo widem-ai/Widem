@@ -1,0 +1,76 @@
+/* Widem design tokens v2 (2026-09-27): one source of truth for the hi-fi pages and later the Astro site.
+   Direction (Mohannad): electronic black with dark green; the green and Readex Pro are kept from v1.
+   Dark by default (:root). A light theme (bare silicon wafer / light PCB) sits under
+   :root[data-theme="light"], set by the theme switch. Readex Pro covers Latin + Arabic in one family.
+   Contrast ratios below are WCAG 2.x, computed against --ground unless stated. */
+@import url("https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300;400;500;600;700&display=swap");
+
+:root {
+  color-scheme: dark;
+  --ground: #040B09;        /* electronic black, green-tinted */
+  --ground-2: #07130F;      /* raised band */
+  --surface: #0A1914;       /* panels */
+  --ink: #E8F2EE;           /* text: 17.38:1 on ground */
+  --ink-soft: #9DB3AB;      /* secondary text: 8.96:1 on ground */
+  --line: #183329;          /* hairlines, idle traces */
+  --action: #0F7B5F;        /* Gulf green: button fill (white text 5.23:1) */
+  --action-ink: #FFFFFF;
+  --action-bright: #2FD39E; /* green for text, links, live pulses: 10.34:1 on ground */
+  --glow: rgba(47, 211, 158, 0.35);
+  --signal: #E8B03A;        /* desert gold: ONLY the "you are free" moment */
+  --focus: #7CC4FF;
+
+  /* canvas / SVG tokens, read by JS (circuit background, chip drawings) */
+  --trace: rgba(24, 110, 84, 0.28);
+  --trace-node: rgba(24, 110, 84, 0.5);
+  --pulse: 47, 211, 158;    /* RGB triplet, no rgb(): JS builds rgba(var, a) */
+  --die: #06140f;
+  --die-line: #1d4d3d;
+  --pin: #1d4d3d;
+  --warn: #E07A5F;          /* 6.73:1 on ground */
+
+  --font: "Readex Pro", "Segoe UI", Tahoma, sans-serif;
+  --t-sm: 0.8rem; --t-base: 1.0625rem; --t-md: 1.4rem; --t-lg: 1.9rem; --t-xl: 2.5rem;
+  --t-hero: clamp(2.3rem, 5.4vw, 4.6rem);
+
+  --gutter: clamp(16px, 4vw, 48px);
+  --measure: 62ch;
+  --radius: 10px;
+}
+
+/* Light: bare silicon wafer / light PCB. Pale cool grey-green ground, near-white panels,
+   green-black ink, darker green traces. Same chip, lit from outside. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --ground: #E4ECE8;        /* wafer grey-green */
+  --ground-2: #D9E3DE;      /* raised band */
+  --surface: #F4F8F6;       /* panels */
+  --ink: #0B1B15;           /* text: 14.78:1 on ground (16.59 on surface) */
+  --ink-soft: #3E554C;      /* secondary text: 6.69:1 on ground (6.13 on ground-2) */
+  --line: #BCCDC5;          /* hairlines, idle traces */
+  --action: #0B6A51;        /* button fill (white text 6.57:1) */
+  --action-ink: #FFFFFF;
+  --action-bright: #0A6E52; /* green as text/links: 5.19:1 on ground (4.75 on ground-2, 5.83 on surface) */
+  --glow: rgba(10, 110, 82, 0.22);
+  --signal: #7A5700;        /* darker desert gold: 5.47:1 on ground */
+  --focus: #0A58A8;         /* 5.87:1 on ground */
+
+  --trace: rgba(14, 94, 70, 0.26);
+  --trace-node: rgba(14, 94, 70, 0.5);
+  --pulse: 18, 150, 108;    /* mid green */
+  --die: #D3DED9;
+  --die-line: #5E7E71;      /* chip outline: 3.24:1 on die */
+  --pin: #5E7E71;
+  --warn: #B0432A;          /* 4.74:1 on ground */
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 400 var(--t-base)/1.6 var(--font); }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; border-radius: 4px; }
+[dir="rtl"] body, [dir="rtl"] { line-height: 1.75; }
+.ltr { direction: ltr; unicode-bidi: isolate; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
