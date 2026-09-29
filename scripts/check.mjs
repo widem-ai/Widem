@@ -131,14 +131,15 @@ function links() {
   return fails;
 }
 
-// 5. A5: no client identity, email, secret key or internal URL anywhere in the repo (prototype/ is the
-// frozen reference and holds the CLIENT_NAMED switch; it is never served). Names are base64 here so this
-// file does not match itself.
+// 5. A5: no founder/contact name, email, secret key or internal URL anywhere in the repo (prototype/ is the
+// frozen reference; it is never served). The client BUSINESS may be named since 2026-09-30 (permission
+// recorded in the vault, in the client's people file); the founder never is (spec D7). Names are base64 here so
+// this file does not match itself.
 function a5Grep() {
   const b64 = (s) => Buffer.from(s, "base64").toString("utf8");
-  const names = ["S2FtaW4=", "RmF0aW1h", "2YPYp9mF2YY=", "2YHYp9i32YXYqQ=="].map(b64);
+  const names = ["RmF0aW1h", "2YHYp9i32YXYqQ=="].map(b64);
   const rules = [
-    ...names.map((n) => [`client name "${n}"`, new RegExp(`(^|[^\\p{L}])${n}($|[^\\p{L}])`, "iu")]),
+    ...names.map((n) => [`founder/contact name "${n}"`, new RegExp(`(^|[^\\p{L}])${n}($|[^\\p{L}])`, "iu")]),
     ["email address", /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}/],
     ["API key (sk-)", /\bsk-[A-Za-z0-9_-]{20,}/],
     ["Supabase secret/publishable key", /\bsb_(?:secret|publishable)_[A-Za-z0-9_-]{10,}/],
@@ -185,7 +186,7 @@ const CHECKS = [
   ["pages: lang/dir, SEO tags, static hero headline", pages],
   ["hero text matches the prototype", heroParity],
   ["every URL resolves under /Widem/", links],
-  ["A5: no client name, email, key or internal URL", a5Grep],
+  ["A5: no founder name, email, key or internal URL", a5Grep],
   ["TypeScript (tsc --noEmit)", typescript],
 ];
 

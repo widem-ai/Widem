@@ -44,8 +44,9 @@ It is never served from the React build.
   images and visibility changes.
 - **GitHub Pages, base path `/Widem/`.** Free, public repo (Spec D3/D5). Every asset URL goes through the
   base path; a hard-coded `/` breaks the live site.
-- **Founder named, client not.** The client stays "a Riyadh career-services firm" until the client's written permission
-  (`CLIENT_NAMED` switch). Spec D7.
+- **Clients named by business, never by founder.** The client agreed to be named (2026-09-30, recorded in the vault):
+  the Work section shows the business name, in both languages. The founder or contact is never named anywhere,
+  and the A5 check fails the build if they are. A logo or testimonial needs its own permission. Spec D7.
 
 ## 4. What's allowed to touch what?
 
