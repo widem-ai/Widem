@@ -46,21 +46,76 @@ a.seg-item:hover { color: var(--ink); }
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--action-bright) 45%, transparent), 0 8px 28px -8px var(--glow);
   transition: box-shadow var(--dur-med), transform var(--dur-med); }
 .btn:hover { box-shadow: 0 0 0 1px var(--action-bright), 0 12px 38px -6px var(--glow); transform: translateY(-2px); }
+.btn::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(100deg, transparent 30%, var(--sheen) 50%, transparent 70%);
+  transform: translateX(-120%); animation: sheen var(--sheen-cycle) ease-in-out infinite; }
+@keyframes sheen { 60%, 100% { transform: translateX(120%); } }
 
 /* ---------- hero ---------- */
 main { position: relative; overflow-x: clip; }
 .hero { position: relative; min-height: 100svh; display: grid; place-items: center; overflow: hidden;
   isolation: isolate; padding: 150px var(--gutter) 120px; }
+/* The circuit canvas sits under a pool of ground colour behind the text (prototype v5), so traces never
+   cut through the headline, and fades into the next section at the bottom. */
+.circuit { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; display: block; }
 .hero::after { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
-  background: radial-gradient(52% 40% at 50% 42%, color-mix(in srgb, var(--action-bright) 8%, transparent) 0%, transparent 74%),
+  background: radial-gradient(52% 40% at 50% 42%, color-mix(in srgb, var(--ground) 86%, transparent) 0%, transparent 74%),
               linear-gradient(to bottom, transparent 72%, var(--ground)); }
-.hero-in { max-width: 1060px; text-align: center; display: grid; justify-items: center; }
-h1 { font-size: var(--t-hero); line-height: 1.06; letter-spacing: -0.035em; font-weight: 600;
-  margin: 0 0 22px; max-width: 19ch; text-wrap: balance; }
-[dir="rtl"] h1 { letter-spacing: 0; line-height: 1.32; }
-.rot { display: inline-block; background: linear-gradient(90deg, var(--action-bright), var(--signal), var(--action-bright));
+.hero-in { position: relative; z-index: 2; max-width: 1060px; text-align: center; display: grid; justify-items: center; }
+
+/* Headline: the real <h1> plus two aria-hidden copies laid exactly over it (same type, same width), used
+   only for the power-on: an outline copy (the unlit chip) and a halo copy (the flash as it lights). Each
+   copy only fades, so nothing but opacity and transform ever animates. */
+.hl { position: relative; margin: 0 0 22px; }
+.hl-text { font-size: var(--t-hero); line-height: 1.06; letter-spacing: -0.035em; font-weight: 600;
+  margin: 0; max-width: 19ch; text-wrap: balance; }
+[dir="rtl"] .hl-text { letter-spacing: 0; line-height: 1.32; }
+.h-vis { display: block; }
+.hl-fx { position: absolute; inset: 0; max-width: none; pointer-events: none; opacity: 0; visibility: hidden; }
+.hl-fx .slot { display: inline-block; }
+.hl-outline { color: transparent; -webkit-text-stroke: 1px color-mix(in srgb, var(--action-bright) 35%, transparent); }
+.hl-glow { color: transparent; text-shadow: 0 0 30px var(--action-bright), 0 0 60px var(--glow); }
+/* The scan line: a full-width strip whose bar starts at the inline start; the scene slides the strip by
+   its own width, so the bar crosses the headline without anything being measured. */
+.hl-scan { position: absolute; inset-block: -8%; inset-inline: 0; max-width: none; }
+.hl-scan i { position: absolute; inset-block: 0; inset-inline-start: 0; width: 3px; background: var(--action-bright);
+  box-shadow: 0 0 24px 8px var(--glow), 0 0 60px 16px var(--glow); }
+
+/* The rotating word: green shading warm at its end; a gold glint crosses it now and then. The glint is a
+   gold copy of the word seen through a soft window: the window slides one way, the copy the other, so the
+   gold travels across letters that stay still (transform only, where the prototype moved background-position). */
+.rot { position: relative; display: inline-block;
+  background: linear-gradient(90deg, var(--action-bright) 15%, color-mix(in srgb, var(--action-bright) 15%, var(--signal)) 100%);
   -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: var(--action-bright); }
+[dir="rtl"] .rot { background-image: linear-gradient(270deg, var(--action-bright) 15%, color-mix(in srgb, var(--action-bright) 15%, var(--signal)) 100%); }
+.glint { position: absolute; inset: 0; overflow: hidden; pointer-events: none; opacity: 0;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 50%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 50%, transparent 100%); }
+.glint i { position: absolute; inset: 0; font-style: normal; white-space: nowrap; }
+.glint i::before { content: attr(data-word); -webkit-text-fill-color: var(--signal); color: var(--signal); }
+:root:not(.js) .glint { display: none; }
+
 .slogan { font-size: var(--t-md); font-weight: 300; color: var(--ink-soft); margin: 0 0 38px; }
+.cue { display: inline-flex; align-items: center; min-height: 44px; margin-top: 44px; padding: 0 var(--space-3);
+  color: var(--ink-soft); font-size: var(--t-sm); text-decoration: none; transition: color var(--dur-fast); }
+.cue:hover { color: var(--action-bright); }
+
+/* Boot state: painted before any JS runs (the shell adds .js before paint), so the headline starts as an
+   unlit outline instead of flashing lit and then going dark. Only when motion is allowed; with reduced
+   motion or JS off the hero paints in its final state. If the scene never starts (script failed), the
+   fallback animation shows everything after --hero-fallback. */
+@media (prefers-reduced-motion: no-preference) {
+  .js .hero.boot .hl h1,
+  .js .hero.boot .slogan, .js .hero.boot .hero-in > .btn, .js .hero.boot .cue {
+    opacity: 0; animation: hero-fallback 0s var(--hero-fallback) forwards; }
+  .js .hero.boot .slogan, .js .hero.boot .hero-in > .btn, .js .hero.boot .cue { transform: translateY(10px); }
+  .js .hero.boot .hl-outline { opacity: 1; visibility: visible; animation: hero-fallback-out 0s var(--hero-fallback) forwards; }
+}
+@keyframes hero-fallback { to { opacity: 1; transform: none; } }
+@keyframes hero-fallback-out { to { opacity: 0; visibility: hidden; } }
+
+/* Visually hidden, still read by screen readers. */
+.sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 
 /* ---------- footer ---------- */
 .foot { position: relative; z-index: 2; background: var(--ground-2); border-block-start: 1px solid var(--line); }

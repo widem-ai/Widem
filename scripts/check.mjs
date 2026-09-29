@@ -5,6 +5,8 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, extname, join, relative } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { launch } from "./lib/cdp.mjs";
+import { startServer } from "./serve.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const DIST = join(ROOT, "dist");
@@ -76,8 +78,16 @@ async function pages() {
     // The headline must be in the pre-rendered markup inside #root, not added by JS after load.
     const rootHtml = html.match(/<div id="root">([\s\S]*)<\/div>\s*<\/body>/)?.[1] ?? "";
     const h1 = rootHtml.match(/<h1[^>]*>([\s\S]*?)<\/h1>/)?.[1];
+    // The h1 holds the full sentence for screen readers (.sr) plus the visible copy with the rotating word
+    // (aria-hidden, as in the prototype). Both must read as the headline in the static HTML.
     if (h1 === undefined) fails.push(`${where}: no <h1> in the static #root markup`);
-    else if (textOf(h1) !== headline(c.hero)) fails.push(`${where}: <h1> reads "${textOf(h1)}", want "${headline(c.hero)}"`);
+    else {
+      const srMatch = h1.match(/<span class="sr"[^>]*>([^<]*)<\/span>/);
+      const sr = srMatch ? decode(srMatch[1]).trim() : null;
+      const vis = textOf(srMatch ? h1.replace(srMatch[0], "") : h1);
+      if (sr !== headline(c.hero)) fails.push(`${where}: <h1> screen-reader text is "${sr}", want "${headline(c.hero)}"`);
+      if (vis !== headline(c.hero)) fails.push(`${where}: <h1> visible text is "${vis}", want "${headline(c.hero)}"`);
+    }
   }
   return fails;
 }
@@ -99,6 +109,14 @@ async function heroParity() {
     if (headline(c.hero) !== w.h) fails.push(`${lang}: headline "${headline(c.hero)}" != prototype "${w.h}"`);
     if (c.hero.subhead !== w.sub) fails.push(`${lang}: subhead "${c.hero.subhead}" != prototype "${w.sub}"`);
     if (c.hero.cta !== w.cta) fails.push(`${lang}: button "${c.hero.cta}" != prototype "${w.cta}"`);
+    const cue = lang === "en" ? proto.match(/data-t="cue">([^<]*)</)?.[1] : arTable("cue");
+    if (c.hero.cue !== cue) fails.push(`${lang}: cue "${c.hero.cue}" != prototype "${cue}"`);
+    // The rotating words: the prototype's WORDS list, first word = the static headline word.
+    const list = proto.match(new RegExp(`\\b${lang}: \\[([^\\]]*)\\]`))?.[1];
+    const words = list ? [...list.matchAll(/"([^"]*)"/g)].map((m) => m[1]) : [];
+    const ours = [c.hero.headlineWord, ...(c.hero.moreWords ?? [])];
+    if (!words.length) fails.push(`${lang}: could not read the rotating words from the prototype`);
+    else if (JSON.stringify(ours) !== JSON.stringify(words)) fails.push(`${lang}: rotating words ${JSON.stringify(ours)} != prototype ${JSON.stringify(words)}`);
   }
   return fails;
 }
@@ -170,6 +188,147 @@ function typescript() {
   return [(r.stdout + r.stderr).trim() || `tsc exited ${r.status}`];
 }
 
+// ---------- Browser checks: the hero scene in real Chrome (states list, spec A13) ----------
+// One Chrome and one local server (any free port) serve every browser check; both close at the end of the run.
+let session = null;
+async function browser() {
+  if (!session) {
+    if (!existsSync(join(DIST, "index.html"))) throw new Error("dist/ missing (run npm run build first)");
+    const { server, port } = await startServer(0);
+    const page = await launch();
+    session = { server, page, url: (lang) => `http://127.0.0.1:${port}${BASE}${lang === "ar" ? "ar/" : ""}` };
+  }
+  return session;
+}
+async function closeBrowser() {
+  if (!session) return;
+  await session.page.close();
+  await new Promise((r) => session.server.close(r));
+  session = null;
+}
+
+// In-page probe. vis(el) = effective opacity (0 when not rendered, or hidden by any ancestor).
+const PROBE = `
+  const vis = (el) => { if (!el || !el.getClientRects().length) return 0; let o = 1;
+    for (let e = el; e; e = e.parentElement) { const s = getComputedStyle(e);
+      if (s.display === "none" || s.visibility === "hidden") return 0; o *= Number(s.opacity); } return Math.round(o * 1000) / 1000; };
+  const $ = (s) => document.querySelector(s);
+  const heroParts = { h1: $("#hero h1"), slogan: $("#hero .slogan"), button: $("#hero .btn"), cue: $("#hero .cue") };`;
+const probe = (page, body) => page.evaluate(`(() => { ${PROBE} ${body} })()`);
+
+async function open(page, url, opts) {
+  await page.emulate(opts);
+  await page.goto(url);
+  if (opts.js !== false) await page.evaluate(`document.fonts ? document.fonts.ready.then(() => true) : true`);
+}
+/** Poll an in-page boolean expression until true or timeout; returns the last value. */
+async function until(page, expr, ms) {
+  const end = Date.now() + ms;
+  let v;
+  do { v = await page.evaluate(`(() => { ${PROBE} return (${expr}); })()`); if (v) return v; await page.wait(150); } while (Date.now() < end);
+  return v;
+}
+const partsJson = `JSON.stringify(Object.fromEntries(Object.entries(heroParts).map(([k, el]) => [k, vis(el)])))`;
+
+// 7. Reduced motion: the hero's final state, everything visible, nothing moving (states list).
+async function reducedMotion() {
+  const { page, url } = await browser();
+  const { en } = await load("content/en.ts");
+  const { ar } = await load("content/ar.ts");
+  const fails = [];
+  const snap = `const cv = $("#circuit"); return JSON.stringify({
+    parts: JSON.parse(${partsJson}),
+    fx: [...document.querySelectorAll("#hero .hl-fx")].map(vis),
+    word: $("#hero .rot")?.textContent ?? null,
+    booting: $("#hero")?.classList.contains("boot") ?? null,
+    moving: [...document.querySelectorAll("#hero *")].map((e) => getComputedStyle(e).transform + "|" + getComputedStyle(e).opacity).join(","),
+    canvas: cv ? cv.toDataURL() : null });`;
+  for (const [lang, c] of [["en", en], ["ar", ar]]) for (const width of [390, 1440]) {
+    const where = `${lang} ${width}px`;
+    await open(page, url(lang), { width, reduce: true });
+    await page.wait(600);
+    const a = JSON.parse(await probe(page, snap));
+    for (const [k, o] of Object.entries(a.parts)) if (o !== 1) fails.push(`${where}: ${k} opacity ${o}, want 1`);
+    if (a.fx.some((o) => o !== 0)) fails.push(`${where}: power-on layers still showing (${a.fx})`);
+    if (a.booting !== false) fails.push(`${where}: hero still in its boot state`);
+    if (a.word !== c.hero.headlineWord) fails.push(`${where}: rotating word shows "${a.word}", want "${c.hero.headlineWord}"`);
+    if (a.canvas === null) fails.push(`${where}: no circuit canvas`);
+    await page.wait(2800);
+    const b = JSON.parse(await probe(page, snap));
+    if (b.word !== a.word) fails.push(`${where}: the word rotated ("${a.word}" -> "${b.word}")`);
+    if (b.moving !== a.moving) fails.push(`${where}: hero elements changed transform/opacity over 2.8 s`);
+    if (b.canvas !== a.canvas) fails.push(`${where}: the circuit canvas kept animating`);
+  }
+  return fails;
+}
+
+// 8. Motion on: the power-on finishes (nothing left dark) and the word rotates.
+async function motionOn() {
+  const { page, url } = await browser();
+  const fails = [];
+  for (const lang of ["en", "ar"]) {
+    await open(page, url(lang), { width: 1440 });
+    const lit = await until(page, `!$("#hero").classList.contains("boot") && Object.values(heroParts).every((el) => vis(el) === 1)`, 7000);
+    if (!lit) fails.push(`${lang}: after 7 s the hero is not fully lit: ${await probe(page, `return ${partsJson}`)}`);
+    const first = await probe(page, `return $("#hero .rot")?.textContent ?? null`);
+    const changed = await until(page, `($("#hero .rot")?.textContent ?? null) !== ${JSON.stringify(first)}`, 7000);
+    if (!changed) fails.push(`${lang}: the word "${first}" did not rotate within 7 s`);
+  }
+  return fails;
+}
+
+// 9. No horizontal scroll at 360 / 390 / 1440 in both languages, mid-animation, and after a resize.
+async function noHorizontalScroll() {
+  const { page, url } = await browser();
+  const fails = [];
+  const widthNow = `return JSON.stringify({ doc: document.documentElement.scrollWidth, view: document.documentElement.clientWidth })`;
+  for (const lang of ["en", "ar"]) {
+    for (const width of [360, 390, 1440]) {
+      await open(page, url(lang), { width });
+      await page.wait(2500);
+      const m = JSON.parse(await probe(page, widthNow));
+      if (m.doc > m.view) fails.push(`${lang} ${width}px: page is ${m.doc}px wide in a ${m.view}px viewport`);
+    }
+    // Resize 1440 -> 390 without reloading: still no overflow, and the circuit is redrawn at the new size.
+    await open(page, url(lang), { width: 1440 });
+    await page.wait(800);
+    await page.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+    await page.wait(900);
+    const r = JSON.parse(await probe(page, `const cv = $("#circuit"); return JSON.stringify({ doc: document.documentElement.scrollWidth,
+      view: document.documentElement.clientWidth, cw: cv ? cv.width : -1, css: cv ? cv.clientWidth : -2 })`));
+    if (r.doc > r.view) fails.push(`${lang} resized to 390px: page is ${r.doc}px wide`);
+    if (r.cw < 0) fails.push(`${lang} resized to 390px: no circuit canvas`);
+    else if (Math.abs(r.cw - r.css) > 1) fails.push(`${lang} resized to 390px: circuit canvas is ${r.cw}px for a ${r.css}px box (not redrawn)`);
+  }
+  return fails;
+}
+
+// 10. JS off: the pre-rendered hero is readable (headline, word, subhead, button all visible).
+async function jsOff() {
+  const { page, url } = await browser();
+  const { en } = await load("content/en.ts");
+  const { ar } = await load("content/ar.ts");
+  const fails = [];
+  for (const [lang, c] of [["en", en], ["ar", ar]]) {
+    await open(page, url(lang), { width: 390, js: false });
+    const s = JSON.parse(await probe(page, `return JSON.stringify({
+      parts: JSON.parse(${partsJson}),
+      text: $("#hero h1 .h-vis") ? $("#hero h1 .h-vis").innerText.replace(/\\s+/g, " ").trim() : null,
+      fx: [...document.querySelectorAll("#hero .hl-fx")].map(vis) })`));
+    for (const [k, o] of Object.entries(s.parts)) if (o !== 1) fails.push(`${lang} JS off: ${k} opacity ${o}, want 1`);
+    if (s.text !== headline(c.hero)) fails.push(`${lang} JS off: visible headline reads "${s.text}", want "${headline(c.hero)}"`);
+    if (s.fx.some((o) => o !== 0)) fails.push(`${lang} JS off: power-on layers showing (${s.fx})`);
+  }
+  await page.emulate({ width: 1440, js: true });
+  return fails;
+}
+
+// 11. Zero console errors, uncaught exceptions or failed loads across every browser check above.
+async function consoleClean() {
+  const { page } = await browser();
+  return page.errors.map((e) => e.slice(0, 300));
+}
+
 function walk(dir, skip = new Set()) {
   const out = [];
   for (const e of readdirSync(dir, { withFileTypes: true })) {
@@ -188,6 +347,11 @@ const CHECKS = [
   ["every URL resolves under /Widem/", links],
   ["A5: no founder name, email, key or internal URL", a5Grep],
   ["TypeScript (tsc --noEmit)", typescript],
+  ["hero, reduced motion: final state, nothing moving (390/1440, EN/AR)", reducedMotion],
+  ["hero, motion on: power-on completes and the word rotates", motionOn],
+  ["hero: no horizontal scroll at 360/390/1440 EN/AR, and after a resize", noHorizontalScroll],
+  ["hero, JS off: headline, subhead and button readable", jsOff],
+  ["browser: zero console errors across the checks above", consoleClean],
 ];
 
 let failed = 0;
@@ -198,5 +362,6 @@ for (const [name, fn] of CHECKS) {
   for (const f of fails) console.log(`      - ${f}`);
   if (fails.length) failed++;
 }
+await closeBrowser();
 console.log(`\n${CHECKS.length - failed}/${CHECKS.length} checks passed`);
 process.exit(failed ? 1 : 0);
