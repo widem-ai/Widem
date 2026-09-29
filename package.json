@@ -6,6 +6,7 @@
   "scripts": {
     "build": "vite build && vite build --ssr src/entry-server.tsx --outDir build-ssr && node scripts/prerender.mjs",
     "check": "node scripts/check.mjs",
+    "preview": "node scripts/serve.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
