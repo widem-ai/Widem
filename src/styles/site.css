@@ -1,0 +1,85 @@
+/* Component styles for the walking skeleton: header, hero, footer.
+   Ported from the prototype's inline <style>; every colour, spacing step and timing reads a token
+   from tokens.css. Logical properties (inline/block) so the Arabic page mirrors on its own. */
+
+a { color: inherit; }
+
+/* ---------- header ---------- */
+.site-head { position: fixed; inset-block-start: 0; inset-inline: 0; z-index: 40;
+  background: color-mix(in srgb, var(--ground) 84%, transparent); backdrop-filter: blur(14px); }
+.head-in { max-width: var(--page-max); margin: 0 auto; padding: var(--space-3) var(--gutter);
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
+
+.brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.25rem;
+  letter-spacing: -0.02em; text-decoration: none; }
+.brand svg { width: 22px; height: 22px; fill: none; stroke-linecap: round; }
+.brand rect { fill: var(--die); stroke: var(--action-bright); stroke-width: 1.6; }
+.brand path { stroke: var(--action-bright); stroke-width: 1.4; }
+
+.ctrl { display: flex; align-items: center; gap: var(--space-3); }
+
+.icon-btn { display: grid; place-items: center; width: 38px; height: 38px; border-radius: var(--radius);
+  border: 1px solid var(--die-line); background: transparent; color: var(--ink); cursor: pointer;
+  transition: border-color var(--dur-fast), box-shadow var(--dur-fast); }
+.icon-btn:hover { border-color: var(--action-bright); box-shadow: 0 0 14px var(--glow); }
+.icon-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.icon-btn .sun { display: none; }
+:root[data-theme="light"] .icon-btn .sun { display: block; }
+:root[data-theme="light"] .icon-btn .moon { display: none; }
+/* The theme button needs JS; with JS off it is not shown (the shell adds .js before paint). */
+:root:not(.js) .theme-btn { display: none; }
+
+/* Language switch: the current language is a label, the other is a real link. */
+.seg { display: inline-grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--die-line);
+  border-radius: var(--radius); padding: 3px; gap: 0; }
+.seg-item { padding: 5px 10px; min-width: 40px; text-align: center; font-size: var(--t-sm); font-weight: 600;
+  line-height: 1.6; color: var(--ink-soft); text-decoration: none; border-radius: 7px;
+  transition: color var(--dur-fast), background-color var(--dur-fast); }
+a.seg-item:hover { color: var(--ink); }
+.seg-item.on { background: var(--action); color: var(--action-ink); box-shadow: 0 0 12px var(--glow); }
+
+/* ---------- button ---------- */
+.btn { position: relative; display: inline-flex; align-items: center; justify-content: center; min-height: 52px;
+  padding: 0 30px; background: var(--action); color: var(--action-ink); border-radius: var(--radius);
+  font-weight: 600; text-decoration: none; font-size: var(--t-base); overflow: hidden; isolation: isolate;
+  max-width: 100%; text-align: center;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--action-bright) 45%, transparent), 0 8px 28px -8px var(--glow);
+  transition: box-shadow var(--dur-med), transform var(--dur-med); }
+.btn:hover { box-shadow: 0 0 0 1px var(--action-bright), 0 12px 38px -6px var(--glow); transform: translateY(-2px); }
+
+/* ---------- hero ---------- */
+main { position: relative; overflow-x: clip; }
+.hero { position: relative; min-height: 100svh; display: grid; place-items: center; overflow: hidden;
+  isolation: isolate; padding: 150px var(--gutter) 120px; }
+.hero::after { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(52% 40% at 50% 42%, color-mix(in srgb, var(--action-bright) 8%, transparent) 0%, transparent 74%),
+              linear-gradient(to bottom, transparent 72%, var(--ground)); }
+.hero-in { max-width: 1060px; text-align: center; display: grid; justify-items: center; }
+h1 { font-size: var(--t-hero); line-height: 1.06; letter-spacing: -0.035em; font-weight: 600;
+  margin: 0 0 22px; max-width: 19ch; text-wrap: balance; }
+[dir="rtl"] h1 { letter-spacing: 0; line-height: 1.32; }
+.rot { display: inline-block; background: linear-gradient(90deg, var(--action-bright), var(--signal), var(--action-bright));
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: var(--action-bright); }
+.slogan { font-size: var(--t-md); font-weight: 300; color: var(--ink-soft); margin: 0 0 38px; }
+
+/* ---------- footer ---------- */
+.foot { position: relative; z-index: 2; background: var(--ground-2); border-block-start: 1px solid var(--line); }
+.foot-in { max-width: var(--page-max); margin: 0 auto; padding: var(--space-7) var(--gutter) 30px;
+  display: grid; grid-template-columns: 1.4fr repeat(3, 1fr); gap: var(--space-6); }
+.foot h2 { margin: 0 0 var(--space-4); font-size: 0.9rem; font-weight: 600; }
+.foot ul { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--space-3); }
+.foot a { color: var(--ink-soft); text-decoration: none; font-size: 0.93rem; transition: color var(--dur-fast); }
+.foot a:hover { color: var(--action-bright); }
+.foot .brand { color: var(--ink); font-size: 1.25rem; }
+.foot .about p { color: var(--ink-soft); font-size: 0.93rem; max-width: 30ch; margin: 14px 0 0; }
+.foot-bottom { max-width: var(--page-max); margin: 0 auto; padding: 20px var(--gutter) 34px; display: flex; flex-wrap: wrap;
+  gap: var(--space-3) var(--space-5); justify-content: space-between; color: var(--ink-soft); font-size: var(--t-sm); }
+
+@media (max-width: 900px) {
+  .foot-in { grid-template-columns: 1fr 1fr; }
+  .foot .about { grid-column: 1 / -1; }
+}
+@media (max-width: 520px) {
+  .hero { padding: 120px var(--gutter) 80px; }
+  .btn { padding: 0 var(--space-5); }
+}
