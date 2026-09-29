@@ -44,7 +44,7 @@ It is never served from the React build.
   images and visibility changes.
 - **GitHub Pages, base path `/Widem/`.** Free, public repo (Spec D3/D5). Every asset URL goes through the
   base path; a hard-coded `/` breaks the live site.
-- **Founder named, client not.** Kamin stays "a Riyadh career-services firm" until Fatima's written permission
+- **Founder named, client not.** The client stays "a Riyadh career-services firm" until the client's written permission
   (`CLIENT_NAMED` switch). Spec D7.
 
 ## 4. What's allowed to touch what?
