@@ -79,6 +79,8 @@ Language switch: a link to the same section in the other page (A2), not a client
 |---|---|
 | A section | `src/sections/<Name>.tsx` + its strings in both content files + its entry in the states-list checks |
 | A scroll effect | inside its section component, using `src/scroll/` for any measurement |
+| A helper scenes share (timing/colour tokens, direction, theme changes) | `src/motion/`: reads tokens, never defines values |
+| A browser check | `scripts/check.mjs`, driving Chrome through `scripts/lib/cdp.mjs` (no Playwright dependency) |
 | A string | both `content/*.ts` files, same key |
 | A token | `src/styles/tokens.css` |
 | A check | `scripts/check.mjs`, with a planted break proving it fails |

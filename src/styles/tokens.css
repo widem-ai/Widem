@@ -43,6 +43,19 @@
   --dur-fast: .2s; --dur-med: .3s;
   --ease-out: cubic-bezier(.3, .7, .2, 1);
   --sheen: rgba(255, 255, 255, .28);
+  --sheen-cycle: 3.8s;      /* the light passing over the main button */
+
+  /* Hero choreography (values from the v5 prototype). Read by src/sections/Hero.tsx through src/motion/env.ts. */
+  --hero-boot-delay: .38s;  /* circuit wave starts, then the headline powers on */
+  --hero-power: 1.1s;       /* outline -> lit headline, glow peak, scan line crossing */
+  --hero-rise: .6s;         /* subhead, button, cue rising in */
+  --hero-word-start: 2.6s;  /* first word change, from boot */
+  --hero-word-hold: 2.4s;   /* one word's turn */
+  --hero-word-out: .3s;
+  --hero-word-in: .45s;
+  --hero-sweep: 3s;         /* gold glint crossing the word */
+  --hero-sweep-rest: 3s;    /* green-only pause between glints */
+  --hero-fallback: 4s;      /* CSS only: if the scene never starts, show the hero anyway */
 }
 
 /* Light: bare silicon wafer / light PCB. Pale cool grey-green ground, near-white panels,
