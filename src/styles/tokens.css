@@ -6,8 +6,8 @@
    Contrast ratios below are WCAG 2.x, computed against --ground unless stated. */
 
 /* `.night` re-declares the dark palette on an element, so a scene that is a night picture (the hero) stays
-   dark inside the light theme. */
-:root, .night {
+   dark inside the light theme. The header does the same during the intro stage, when it floats on that picture. */
+:root, .night, :root[data-stage="intro"] .site-head {
   color-scheme: dark;
   --ground: #040B09;        /* electronic black, green-tinted */
   --ground-2: #07130F;      /* raised band */
@@ -46,6 +46,13 @@
   --ease-out: cubic-bezier(.3, .7, .2, 1);
   --sheen: rgba(255, 255, 255, .28);
   --sheen-cycle: 3.8s;      /* the light passing over the main button */
+  --target: 44px;           /* minimum touch target (header controls, menu rows) */
+
+  /* The navigation arriving when the visitor leaves the hero intro (data-stage intro -> site). */
+  --arrive: .55s;           /* the bar's ground sliding in; each control fading down into place */
+  --arrive-step: 45ms;      /* stagger between links, in reading order */
+  --arrive-trace: .9s;      /* the signal trace running along the bar's lower edge */
+  --leave: .2s;             /* back to the intro: everything but brand and AR|EN steps out, quickly */
 
   /* Hero v3 (2026-10-01): the pinned trace headline. Read by src/sections/Hero.tsx through src/motion/env.ts. */
   --hero-pin: 3.5;            /* screens of scroll while the hero is pinned and the words power on */

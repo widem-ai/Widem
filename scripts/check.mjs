@@ -617,6 +617,198 @@ async function consoleClean() {
   return page.errors.map((e) => e.slice(0, 300));
 }
 
+// ---------- Navigation (header-nav slice, 2026-10-01) ----------
+// The header reads one attribute, <html data-stage>: "intro" while the visitor is inside the hero story (brand and
+// AR|EN only), "site" after it (the full navigation). Unset (JS off, reduced motion, hero not merged) = full nav.
+
+// 16. Nav strings and links match the prototype's header (A14): the link list (order, href, text) in the bar and in
+// the phone menu, the "Book a call" button, and the English labels the prototype carries (Main, Menu, Language).
+async function navParity() {
+  const { en } = await load("content/en.ts");
+  const { ar } = await load("content/ar.ts");
+  const proto = read(join(ROOT, "prototype/index.html"));
+  const arTable = (key) => proto.match(new RegExp(`\\b${key}: "([^"]*)"`))?.[1];
+  const protoNav = proto.match(/<nav class="nav" id="nav" aria-label="([^"]*)">([\s\S]*?)<\/nav>/);
+  if (!protoNav) return ['could not read the prototype\'s <nav class="nav">'];
+  const items = [...protoNav[2].matchAll(/<a href="([^"]*)" data-t="([^"]*)">([^<]*)<\/a>/g)].map((m) => ({ href: m[1], key: m[2], en: m[3] }));
+  const want = {
+    en: { links: items.map((i) => [i.href, i.en]), book: proto.match(/data-t="fk1">([^<]*)</)?.[1], navLabel: protoNav[1],
+          menu: proto.match(/class="icon-btn menu-btn"[^>]*aria-label="([^"]*)"/)?.[1], lang: proto.match(/data-t="langL">([^<]*)</)?.[1] },
+    ar: { links: items.map((i) => [i.href, arTable(i.key)]), book: arTable("fk1"), lang: arTable("langL") },
+  };
+  const c = { en, ar }, fails = [];
+  if (items.length !== 7) fails.push(`read ${items.length} links from the prototype's nav, expected 7`);
+  for (const lang of ["en", "ar"]) {
+    const html = distPage(lang) ?? "", where = `dist/${PAGES[lang].file}`, w = want[lang];
+    const head = html.match(/<header class="site-head[\s\S]*?<\/header>/)?.[0];
+    if (!head) { fails.push(`${where}: no <header class="site-head"> in the static HTML`); continue; }
+    for (const [cls, name] of [["nav", "bar"], ["mnav", "phone menu"]]) {
+      const nav = head.match(new RegExp(`<nav class="${cls}[" ][^>]*>([\\s\\S]*?)</nav>`));
+      if (!nav) { fails.push(`${where}: no ${name} nav (.${cls})`); continue; }
+      const got = [...nav[1].matchAll(/<a [^>]*href="(#[^"]*)"[^>]*>([\s\S]*?)<\/a>/g)].map((m) => [m[1], textOf(m[2])]).filter(([h]) => h !== "#book");
+      if (JSON.stringify(got) !== JSON.stringify(w.links)) fails.push(`${where}: ${name} links ${JSON.stringify(got)} != prototype ${JSON.stringify(w.links)}`);
+      const label = attr(nav[0], "aria-label");
+      if (label !== c[lang].header.navLabel) fails.push(`${where}: ${name} aria-label "${label}", want content header.navLabel`);
+    }
+    const books = [...head.matchAll(/<a class="btn[^"]*" href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/g)].map((m) => [m[1], textOf(m[2])]);
+    if (books.length !== 2 || books.some(([h, t]) => h !== "#book" || t !== w.book)) fails.push(`${where}: header buttons ${JSON.stringify(books)}, want two "${w.book}" -> #book (bar + phone menu)`);
+    if (c[lang].header.book !== w.book) fails.push(`${lang}: header.book "${c[lang].header.book}" != prototype "${w.book}"`);
+    if (c[lang].header.langLabel !== w.lang) fails.push(`${lang}: header.langLabel "${c[lang].header.langLabel}" != prototype "${w.lang}"`);
+    if (lang === "en" && en.header.navLabel !== w.navLabel) fails.push(`en: header.navLabel "${en.header.navLabel}" != prototype "${w.navLabel}"`);
+    if (lang === "en" && en.header.menu !== w.menu) fails.push(`en: header.menu "${en.header.menu}" != prototype "${w.menu}"`);
+  }
+  return fails;
+}
+
+const KEYS = { Tab: 9, Enter: 13, Escape: 27 };
+async function press(page, key) {
+  const k = { key, code: key, windowsVirtualKeyCode: KEYS[key], nativeVirtualKeyCode: KEYS[key] };
+  await page.send("Input.dispatchKeyEvent", { type: "keyDown", ...k, ...(key === "Enter" ? { text: "\r" } : {}) });
+  await page.send("Input.dispatchKeyEvent", { type: "keyUp", ...k });
+}
+async function tap(page, sel) {
+  const p = JSON.parse(await probe(page, `const b = $(${JSON.stringify(sel)}).getBoundingClientRect(); return JSON.stringify({ x: b.left + b.width / 2, y: b.top + b.height / 2 })`));
+  await page.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: p.x, y: p.y }] });
+  await page.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+}
+const setStage = (page, stage) => page.evaluate(stage ? `document.documentElement.dataset.stage = "${stage}"` : `delete document.documentElement.dataset.stage`);
+// Names a header element by its part; "out" once focus has left the header.
+const PART = `const part = (el) => { if (!el || !el.closest(".site-head")) return "out";
+  if (el.closest(".mnav")) return el.matches(".btn") ? "panel-book" : el.matches(".theme-btn") ? "panel-theme" : "panel-link";
+  if (el.closest(".nav")) return "link"; if (el.matches(".brand")) return "brand"; if (el.closest(".seg")) return "seg";
+  if (el.matches(".menu-btn")) return "menu"; if (el.matches(".theme-btn")) return "theme"; if (el.matches(".btn")) return "book"; return el.tagName; };
+  const H = $(".site-head"), q = (s) => H.querySelector(s);
+  const parts = { brand: q(".brand"), seg: q(".head-in .seg"), nav: q(".nav"), book: q(".head-in .btn"), theme: q(".head-in .theme-btn"), menu: q(".menu-btn"), panel: q(".mnav") };`;
+/** Presses Tab from the top of a fresh page and lists the header parts focus visits, with their focus ring. */
+async function tabWalk(page) {
+  const seen = [];
+  for (let i = 0; i < 25; i++) {
+    await press(page, "Tab");
+    const s = JSON.parse(await probe(page, `${PART} const a = document.activeElement, cs = getComputedStyle(a);
+      return JSON.stringify({ p: part(a), ring: cs.outlineStyle !== "none" && parseFloat(cs.outlineWidth) >= 2 })`));
+    if (s.p === "out") break;
+    seen.push(s);
+  }
+  return seen;
+}
+const ALL_1440 = ["brand", ...Array(7).fill("link"), "book", "theme", "seg"];
+const EXPECT = { intro: { 1440: ["brand", "seg"], 390: ["brand", "seg"] }, site: { 1440: ALL_1440, 390: ["brand", "seg", "menu"] } };
+EXPECT.unset = EXPECT.site;
+
+// 17. Stage states: intro shows brand + AR|EN only and nothing hidden takes focus; site and unset show the full nav.
+// Keyboard walk with real Tab presses, focus ring on every stop, RTL mirrored, only transform/opacity animate.
+async function navStates() {
+  const { page, url } = await browser();
+  const fails = [];
+  for (const lang of ["en", "ar"]) for (const width of [1440, 390]) for (const stage of ["intro", "site", "unset"]) {
+    const where = `${lang} ${width}px stage=${stage}`;
+    await open(page, url(lang), { width, height: width > 600 ? 900 : 844 });
+    await setStage(page, stage === "unset" ? null : stage);
+    await page.wait(1100);
+    const s = JSON.parse(await probe(page, `${PART}
+      const shown = Object.fromEntries(Object.entries(parts).map(([k, el]) => [k, vis(el)]));
+      const box = (el) => el ? el.getBoundingClientRect() : { left: NaN };
+      const moving = [...H.querySelectorAll(".late"), H].flatMap((el) => [getComputedStyle(el), getComputedStyle(el, "::before"), getComputedStyle(el, "::after")])
+        .flatMap((cs) => cs.transitionDuration.split(",").some((d) => parseFloat(d) > 0) ? cs.transitionProperty.split(",").map((p) => p.trim()) : [])
+        .filter((p) => !["opacity", "transform", "visibility"].includes(p));
+      return JSON.stringify({ shown, brandX: box(parts.brand).left, segX: box(parts.seg).left,
+        doc: document.documentElement.scrollWidth, view: document.documentElement.clientWidth, moving: [...new Set(moving)] });`));
+    const wantShown = { brand: 1, seg: 1, nav: 0, book: 0, theme: 0, menu: 0, panel: 0 };
+    if (stage !== "intro") Object.assign(wantShown, width > 600 ? { nav: 1, book: 1, theme: 1 } : { menu: 1 });
+    for (const [k, v] of Object.entries(wantShown)) if (s.shown[k] !== v) fails.push(`${where}: ${k} opacity ${s.shown[k]}, want ${v}`);
+    const walk = await tabWalk(page);
+    const got = walk.map((w) => w.p);
+    if (JSON.stringify(got) !== JSON.stringify(EXPECT[stage][width])) fails.push(`${where}: Tab visits ${JSON.stringify(got)}, want ${JSON.stringify(EXPECT[stage][width])}`);
+    const noRing = walk.filter((w) => !w.ring).map((w) => w.p);
+    if (noRing.length) fails.push(`${where}: no visible focus ring on ${JSON.stringify(noRing)}`);
+    if ((lang === "ar") !== (s.brandX > s.segX)) fails.push(`${where}: brand at x=${Math.round(s.brandX)}, AR|EN at x=${Math.round(s.segX)}: not mirrored for ${lang}`);
+    if (s.doc > s.view) fails.push(`${where}: page is ${s.doc}px wide in a ${s.view}px viewport`);
+    if (s.moving.length) fails.push(`${where}: header transitions animate ${JSON.stringify(s.moving)} (only transform/opacity)`);
+    // In the intro the header floats on the hero's night picture, so it keeps the night palette in the light theme.
+    if (stage === "intro" && width === 1440) {
+      await page.evaluate(`document.documentElement.setAttribute("data-theme", "light")`);
+      const ink = await probe(page, `return getComputedStyle($(".site-head .brand")).color`);
+      if (ink !== "rgb(232, 242, 238)") fails.push(`${where} light theme: brand ink is ${ink}, want the night palette's ink rgb(232, 242, 238)`);
+      await page.evaluate(`document.documentElement.removeAttribute("data-theme")`);
+    }
+  }
+  return fails;
+}
+
+// 18. The phone menu: opens and closes with the keyboard (Enter, Escape, focus back on the button) and with touch
+// (tap the button, tap a link), aria-expanded right each time, and closes itself when the visitor scrolls back
+// into the intro. Checked at 360 (the narrowest) in both languages, with no horizontal scroll while open.
+async function phoneMenu() {
+  const { page, url } = await browser();
+  const fails = [];
+  const st = `${PART} return JSON.stringify({ exp: parts.menu.getAttribute("aria-expanded"), panel: vis(parts.panel),
+    links: [...parts.panel.querySelectorAll("a")].map(vis), focus: part(document.activeElement),
+    doc: document.documentElement.scrollWidth, view: document.documentElement.clientWidth })`;
+  for (const lang of ["en", "ar"]) {
+    const where = `${lang} 360px`;
+    await open(page, url(lang), { width: 360, height: 740 });
+    await setStage(page, "site");
+    await page.wait(900);
+    await page.evaluate(`document.querySelector(".menu-btn").focus()`);
+    await press(page, "Enter");
+    await page.wait(900); // the menu's last row lands at ~615 ms (stagger)
+    let s = JSON.parse(await probe(page, st));
+    if (s.exp !== "true" || s.panel !== 1 || !s.links.length || s.links.some((o) => o !== 1)) fails.push(`${where} Enter: menu not open (aria-expanded ${s.exp}, panel ${s.panel}, links ${s.links})`);
+    if (s.doc > s.view) fails.push(`${where} menu open: page is ${s.doc}px wide`);
+    await press(page, "Tab");
+    s = JSON.parse(await probe(page, st));
+    if (s.focus !== "panel-link") fails.push(`${where}: Tab after opening goes to "${s.focus}", want the first menu link`);
+    await press(page, "Escape");
+    await page.wait(600);
+    s = JSON.parse(await probe(page, st));
+    if (s.exp !== "false" || s.panel !== 0) fails.push(`${where} Escape: menu still open (aria-expanded ${s.exp}, panel ${s.panel})`);
+    if (s.focus !== "menu") fails.push(`${where} Escape: focus is on "${s.focus}", want back on the menu button`);
+
+    await page.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 1 });
+    await tap(page, ".menu-btn");
+    await page.wait(900);
+    s = JSON.parse(await probe(page, st));
+    if (s.exp !== "true" || s.panel !== 1) fails.push(`${where} tap: menu not open (aria-expanded ${s.exp}, panel ${s.panel})`);
+    else {
+      await tap(page, ".mnav a");
+      await page.wait(600);
+      s = JSON.parse(await probe(page, st));
+      if (s.exp !== "false" || s.panel !== 0) fails.push(`${where} tap on a link: menu still open (aria-expanded ${s.exp}, panel ${s.panel})`);
+    }
+    await tap(page, ".menu-btn");
+    await page.wait(500);
+    await setStage(page, "intro");
+    await page.wait(700);
+    s = JSON.parse(await probe(page, st));
+    if (s.exp !== "false" || s.panel !== 0) fails.push(`${where} back to intro: menu still open (aria-expanded ${s.exp}, panel ${s.panel})`);
+    await page.send("Emulation.setTouchEmulationEnabled", { enabled: false });
+  }
+  return fails;
+}
+
+// 19. The nav's "Book a call" carries the main button's light sheen (Mohannad: keep the flash), in the bar and in
+// the phone menu, on the same cycle token as the hero button.
+async function navSheen() {
+  const { page, url } = await browser();
+  const fails = [];
+  const sheen = (sel) => `const el = $(${JSON.stringify(sel)}); if (!el) return JSON.stringify(null); const b = getComputedStyle(el, "::before");
+    return JSON.stringify({ vis: vis(el), name: b.animationName, count: b.animationIterationCount, dur: b.animationDuration, state: b.animationPlayState,
+      cycle: getComputedStyle(document.documentElement).getPropertyValue("--sheen-cycle").trim() })`;
+  for (const [width, sel, openMenu] of [[1440, ".head-in .btn", false], [390, ".mnav .btn", true]]) {
+    const where = `${width}px ${sel}`;
+    await open(page, url("en"), { width });
+    await setStage(page, "site");
+    await page.wait(900);
+    if (openMenu) { await page.evaluate(`document.querySelector(".menu-btn")?.click()`); await page.wait(900); }
+    const s = JSON.parse(await probe(page, sheen(sel)));
+    if (!s) { fails.push(`${where}: no button`); continue; }
+    if (s.vis !== 1) fails.push(`${where}: button not visible (${s.vis})`);
+    if (s.name !== "sheen" || s.count !== "infinite" || s.state !== "running") fails.push(`${where}: ::before animation is "${s.name}" x${s.count} (${s.state}), want the sheen, infinite, running`);
+    if (s.dur !== s.cycle) fails.push(`${where}: sheen lasts ${s.dur}, want --sheen-cycle (${s.cycle})`);
+  }
+  return fails;
+}
+
 function walk(dir, skip = new Set()) {
   const out = [];
   for (const e of readdirSync(dir, { withFileTypes: true })) {
@@ -647,6 +839,10 @@ const CHECKS = [
   ["hero image on screen: right crop, text readable over it (360-1920, EN/AR, dark/light)", heroArtOnScreen],
   ["hero at rest, motion on: trace headline readable over the pushed-in image (390/1440, EN/AR)", restContrast],
   ["hero scroll scene: push-in while pinned, at rest at the top, right after a scrolled reload", heroScroll],
+  ["nav: strings and links match the prototype (EN/AR, bar and phone menu)", navParity],
+  ["nav stages: intro = brand + AR|EN only, site/unset = full nav; Tab order, focus ring, RTL (390/1440)", navStates],
+  ["nav: phone menu opens/closes by keyboard and touch, aria-expanded, Escape, closes on intro", phoneMenu],
+  ["nav: Book a call carries the sheen (bar and phone menu)", navSheen],
   ["browser: zero console errors across the checks above", consoleClean],
 ];
 
