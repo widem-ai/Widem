@@ -47,23 +47,19 @@
   --sheen: rgba(255, 255, 255, .28);
   --sheen-cycle: 3.8s;      /* the light passing over the main button */
 
-  /* Hero choreography (values from the v5 prototype). Read by src/sections/Hero.tsx through src/motion/env.ts. */
-  --hero-boot-delay: .38s;  /* the image starts to settle, then the headline powers on */
-  --hero-power: 1.1s;       /* outline -> lit headline, glow peak, scan line crossing */
-  --hero-rise: .6s;         /* subhead, button, cue rising in */
-  --hero-word-start: 2.6s;  /* first word change, from boot */
-  --hero-word-hold: 2.4s;   /* one word's turn */
-  --hero-word-out: .3s;
-  --hero-word-in: .45s;
-  --hero-sweep: 3s;         /* gold glint crossing the word */
-  --hero-sweep-rest: 3s;    /* green-only pause between glints */
-  --hero-fallback: 4s;      /* CSS only: if the scene never starts, show the hero anyway */
+  /* Hero v3 (2026-10-01): the pinned trace headline. Read by src/sections/Hero.tsx through src/motion/env.ts. */
+  --hero-pin: 3.5;            /* screens of scroll while the hero is pinned and the words power on */
+  --hero-scrub: .3;           /* seconds the scene takes to catch up with the scroll (smooths wheel steps) */
+  --hero-fallback: 4s;        /* CSS only: if the scene never starts, show the hero anyway */
+  --hero-guide-cycle: 1.8s;   /* the pulse running down the scroll guide's trace */
+  --hero-trace-idle: rgba(47, 211, 158, .26);  /* an unlit letter outline, etched into the sky */
+  --hero-trace-glow: rgba(47, 211, 158, .24);  /* the soft halo along a lit outline */
+  --hero-trace-head: #E6FFF5;                  /* the light running around a letter as it powers on */
+  --hero-trace-run: .1;       /* length of that light, as a share of the letter outline */
   /* The hero image (concept C). Unitless: read by the scene through number(). */
   --hero-settle: 2.4s;        /* on load: the image eases back from slightly zoomed to rest */
   --hero-settle-from: 1.06;   /* its starting scale */
-  --hero-push: 1.16;          /* on scroll: how far the image is pushed in by the time the hero has left */
-  --hero-lift: -14;           /* on scroll: the text block's travel, in % of its own height */
-  --hero-lift-fade: .25;      /* and its opacity by then */
+  --hero-push: 1.16;          /* on scroll: how far the image is pushed in by the end of the pinned story */
   --hero-min: max(100svh, min(56.25vw, 1080px)); /* tall enough on wide screens to keep the image's sky */
 }
 /* The page's own ground (follows the theme), for a .night scene's fade into the section below it. */

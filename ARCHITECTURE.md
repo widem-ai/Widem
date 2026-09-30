@@ -30,6 +30,7 @@ It is never served from the React build.
 | Tailwind's theme | `src/styles/tailwind.css`: maps Tailwind colour/font names onto the tokens; its default palette is switched off |
 | Language and direction (`lang`, `dir`) | the page shell, set at pre-render; components never set `dir` themselves |
 | Theme (dark/light) | one `data-theme` attribute on `<html>`; stored per visitor |
+| Where the visitor is in the hero story | one `data-stage` attribute on `<html>`, written only by `src/sections/Hero.tsx`; read (never written) by the header. See §3 |
 | Scroll scenes | one component per section under `src/sections/`, each owning its own GSAP context and cleanup |
 | Shared scroll utilities (the route line, docks) | `src/scroll/`: nothing else measures layout for scroll |
 | SEO tags, hreflang, JSON-LD | `src/seo/`, rendered into the HTML at pre-render (never injected after load) |
@@ -51,6 +52,19 @@ It is never served from the React build.
   section carries the class `night` (tokens.css) so its text keeps the dark palette inside the light theme.
   Portrait screens get the tall crop, so the headline always sits in the image's dark sky; the check
   measures the contrast behind the text from a screenshot, so a new image or layout cannot quietly break it.
+- **The hero is a pinned scroll story (v3, Mohannad 2026-10-01).** The headline is etched into the image's dark sky as
+  circuit traces; while the visitor scrolls, each word powers on in reading order (light runs around each letter, then
+  it fills), the image is pushed in, and at the end the subline, button and cue appear and the page releases. The real
+  headline stays an HTML `<h1>` (one span per word); the traces are an aria-hidden SVG built in the browser from the
+  shaped words (canvas mask + marching squares, `src/sections/heroTraces.ts`), so Arabic joins correctly with no text
+  library. The pin is CSS (`position: sticky` in a track `--hero-pin` screens tall, only with JS and motion allowed):
+  the page has its full height at first paint, so a reload mid-story keeps its place. No three.js: the background is
+  the image. Reduced motion and JS off: everything lit at once, no pin, no guide. The rotating word and gold glint of
+  the first hero are gone (not part of v3).
+- **The header contract: `<html data-stage>`.** `"intro"` while the visitor is inside the pinned hero story, `"site"`
+  once it has ended and the page releases (and `"intro"` again on scrolling back into it). **Unset** when there is no
+  pinned story (reduced motion, JS off): the header then shows the full site navigation. Only the hero writes it; the
+  header only reads it. Checked in `scripts/check.mjs` (stage, reduced motion, JS off).
 - **Tailwind CSS v4, reading our tokens (added 2026-09-30, Mohannad's decision).** Reason: the component libraries
   worth borrowing from (SmoothUI, Unlumen UI, Skiper UI) are written in Tailwind; with it their pieces port with
   little rewriting. Tailwind never owns a value: `tailwind.css` points every colour at a `tokens.css` variable and

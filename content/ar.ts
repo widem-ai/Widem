@@ -24,8 +24,10 @@ export const ar: Content = {
     headlineAfter: "خلال أسبوعين، دون توظيف أحد.",
     subhead: "أنت تدير عملك. ونحن ندير الإدارة.",
     cta: "اجعل عملك يدير نفسه",
-    moreWords: ["المتابعات", "الأوراق", "المواعيد", "التقارير", "إدخال البيانات"],
     cue: "اتبع الإشارة",
+    // NEW (v3, 2026-10-01): the scroll guide shown at the top of the pinned hero story (motion on only).
+    // DRAFT: awaiting Mohannad's sign-off on the wording.
+    guide: "مرّر لتشغيلها",
   },
   footer: {
     slogan: "أنت تدير عملك. ونحن ندير الإدارة.",

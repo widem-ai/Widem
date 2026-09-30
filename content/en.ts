@@ -15,15 +15,16 @@ export const en = {
     themeToDark: "Switch to dark mode",
   },
   hero: {
-    // The headline reads before + word + after. headlineWord is the static word (JS off, reduced motion,
-    // screen readers); with motion on it rotates through moreWords and back.
+    // The headline reads before + word + after (kept as three keys for parity with the prototype, A14).
+    // Hero v3 (2026-10-01): no rotating word; every word powers on as a trace while the visitor scrolls.
     headlineBefore: "Get the",
     headlineWord: "admin",
     headlineAfter: "off your plate in 2 weeks, without hiring anyone.",
     subhead: "You run the business. We run the admin.",
     cta: "Get my business running itself",
-    moreWords: ["follow-ups", "paperwork", "scheduling", "reporting", "data entry"],
     cue: "Follow the signal",
+    // NEW (v3, 2026-10-01): the scroll guide shown at the top of the pinned hero story (motion on only).
+    guide: "Scroll to switch it on",
   },
   footer: {
     slogan: "You run the business. We run the admin.",
