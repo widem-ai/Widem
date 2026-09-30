@@ -547,30 +547,40 @@ async function restContrast() {
   return fails;
 }
 
-// 13. The scroll scene (hero v3): with motion on, the pinned scroll pushes the image in while the text stays put
-// (pinned); back at the top everything is at rest again. Also when the page is loaded already scrolled into the
-// story (reload, deep link): the image and the words match the position, not the rest state.
+// 13. The scroll scene (hero v4, the flight): with motion on, the story starts low and close beside the chip (the photo
+// zoomed in, the headline lying on the board), the view pulls back while the visitor scrolls (the text box stays pinned),
+// and at the end the whole picture is shown with the headline standing upright at its rest place. Back at the top the
+// view is close again. Also when the page is loaded already scrolled into the story (reload, deep link): the photo and
+// the words match the position, not the top or the rest state.
 async function heroScroll() {
   const { page, url } = await browser();
   const fails = [];
-  const state = `return JSON.stringify({ scale: new DOMMatrix(getComputedStyle($(".hero-art")).transform).a,
+  const state = `const m = new DOMMatrix(getComputedStyle($("#hero .hl")).transform);
+    return JSON.stringify({ scale: new DOMMatrix(getComputedStyle($(".hero-art")).transform).a,
+    upright: Math.abs(m.m13) + Math.abs(m.m23) + Math.abs(m.m31) + Math.abs(m.m32) + Math.abs(m.m34) < 1e-3 && Math.abs(m.b) + Math.abs(m.c) < 1e-3,
     textTop: Math.round($("#hero .hero-in").getBoundingClientRect().top), lit: words().filter((w) => vis(w) === 1).length, y: scrollY, range: story().range })`;
   for (const lang of ["en", "ar"]) {
     await open(page, url(lang), { width: 1440 });
     await until(page, `!$("#hero").classList.contains("boot")`, 6000);
     await page.wait(2600); // past the load settle
     const top = JSON.parse(await probe(page, state));
-    if (Math.abs(top.scale - 1) > 0.001) fails.push(`${lang}: at the top the image is already scaled (${top.scale})`);
+    if (!(top.scale > 1.3)) fails.push(`${lang}: at the top the view is not close beside the chip (photo scale ${top.scale}, want > 1.3)`);
+    if (top.upright) fails.push(`${lang}: at the top the headline is not lying on the board (its transform is flat)`);
     if (top.range < 200) { fails.push(`${lang}: the pinned story is too short to test (${top.range}px)`); continue; }
     await page.evaluate(`(() => { ${PROBE} toStory(0.6); })()`);
     await page.wait(900);
     const down = JSON.parse(await probe(page, state));
-    if (!(down.scale > 1.01)) fails.push(`${lang}: after scrolling ${down.y}px the image is not pushed in (scale ${down.scale})`);
+    if (!(down.scale > 1.01 && down.scale < top.scale - 0.05)) fails.push(`${lang}: at 60% the view has not pulled back part way (scale ${down.scale}, top ${top.scale})`);
     if (Math.abs(down.textTop - top.textTop) > 1) fails.push(`${lang}: the text moved from ${top.textTop}px to ${down.textTop}px while the hero is pinned`);
+    await page.evaluate(`(() => { ${PROBE} toStory(1); })()`);
+    await page.wait(900);
+    const end = JSON.parse(await probe(page, state));
+    if (Math.abs(end.scale - 1) > 0.001) fails.push(`${lang}: at rest the whole picture is not shown (photo scale ${end.scale})`);
+    if (!end.upright) fails.push(`${lang}: at rest the headline is not standing upright at its place`);
     await page.evaluate(`window.scrollTo({ top: 0, behavior: "instant" })`);
     await page.wait(900);
     const back = JSON.parse(await probe(page, state));
-    if (Math.abs(back.scale - 1) > 0.001 || back.lit !== 0) fails.push(`${lang}: back at the top the scene is not at rest (scale ${back.scale}, ${back.lit} words lit)`);
+    if (Math.abs(back.scale - top.scale) > 0.01 || back.lit !== 0) fails.push(`${lang}: back at the top the scene is not at its start (scale ${back.scale}, ${back.lit} words lit)`);
 
     // Reload while scrolled into the story: the browser restores the position; the scene must match it.
     await page.evaluate(`(() => { ${PROBE} toStory(0.6); })()`);
@@ -580,7 +590,7 @@ async function heroScroll() {
     const deep = JSON.parse(await probe(page, state));
     if (deep.y < 100) fails.push(`${lang}: the reload did not keep the scroll position (${deep.y}px), so the deep-load state was not tested`);
     else {
-      if (!(deep.scale > 1.01)) fails.push(`${lang}: loaded at ${deep.y}px, but the image is at rest (scale ${deep.scale})`);
+      if (!(deep.scale > 1.01 && deep.scale < top.scale - 0.05)) fails.push(`${lang}: loaded at ${deep.y}px, but the view is at the top or at rest (scale ${deep.scale})`);
       if (!(deep.lit > 0)) fails.push(`${lang}: loaded at ${deep.y}px (60% of the story), but no word is lit`);
     }
   }
@@ -837,8 +847,8 @@ const CHECKS = [
   ["hero, JS off: headline, subhead and button readable; no guide, no data-stage", jsOff],
   ["hero image: both crops, both formats, in budget, preloaded, in the static HTML", heroArtFiles],
   ["hero image on screen: right crop, text readable over it (360-1920, EN/AR, dark/light)", heroArtOnScreen],
-  ["hero at rest, motion on: trace headline readable over the pushed-in image (390/1440, EN/AR)", restContrast],
-  ["hero scroll scene: push-in while pinned, at rest at the top, right after a scrolled reload", heroScroll],
+  ["hero at rest, motion on: trace headline readable over the image (390/1440, EN/AR)", restContrast],
+  ["hero flight: close by the chip at the top, pulls back while pinned, whole picture + upright text at rest, right after a scrolled reload", heroScroll],
   ["nav: strings and links match the prototype (EN/AR, bar and phone menu)", navParity],
   ["nav stages: intro = brand + AR|EN only, site/unset = full nav; Tab order, focus ring, RTL (390/1440)", navStates],
   ["nav: phone menu opens/closes by keyboard and touch, aria-expanded, Escape, closes on intro", phoneMenu],

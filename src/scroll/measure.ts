@@ -36,3 +36,13 @@ export type Box = { x: number; y: number; width: number; height: number };
 export function inlineBoxes(els: HTMLElement[]): Box[] {
   return els.map((el) => ({ x: el.offsetLeft, y: el.offsetTop, width: el.offsetWidth, height: el.offsetHeight }));
 }
+
+/** An element's layout position inside an ancestor (summed offsets): unaffected by transforms or a pinned scene. */
+export function offsetIn(el: HTMLElement, ancestor: HTMLElement): { x: number; y: number } {
+  let x = 0, y = 0;
+  for (let e: HTMLElement | null = el; e && e !== ancestor; e = e.offsetParent as HTMLElement | null) {
+    x += e.offsetLeft;
+    y += e.offsetTop;
+  }
+  return { x, y };
+}

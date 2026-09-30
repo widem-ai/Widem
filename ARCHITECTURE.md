@@ -52,15 +52,21 @@ It is never served from the React build.
   section carries the class `night` (tokens.css) so its text keeps the dark palette inside the light theme.
   Portrait screens get the tall crop, so the headline always sits in the image's dark sky; the check
   measures the contrast behind the text from a screenshot, so a new image or layout cannot quietly break it.
-- **The hero is a pinned scroll story (v3, Mohannad 2026-10-01).** The headline is etched into the image's dark sky as
-  circuit traces; while the visitor scrolls, each word powers on in reading order (light runs around each letter, then
-  it fills), the image is pushed in, and at the end the subline, button and cue appear and the page releases. The real
-  headline stays an HTML `<h1>` (one span per word); the traces are an aria-hidden SVG built in the browser from the
-  shaped words (canvas mask + marching squares, `src/sections/heroTraces.ts`), so Arabic joins correctly with no text
-  library. The pin is CSS (`position: sticky` in a track `--hero-pin` screens tall, only with JS and motion allowed):
-  the page has its full height at first paint, so a reload mid-story keeps its place. No three.js: the background is
-  the image. Reduced motion and JS off: everything lit at once, no pin, no guide. The rotating word and gold glint of
-  the first hero are gone (not part of v3).
+- **The hero is a pinned scroll story: v2's flight on the photo (v4, Mohannad 2026-10-01).** "Remake the image with
+  the same scrolling effects [as sketch v2]: instead of a 3D model, it's an image." At the top the view is low and close
+  beside the gold chip and the headline lies on the board as dark etched letters; while the visitor scrolls, the view
+  glides along the lines and each word powers on in reading order (light runs around each letter, then it fills); the
+  view rises and pulls back while the text stands up toward the viewer; a gold pulse leaves the chip and runs through
+  every word; then the subline, button and cue appear and the page releases. The camera is simulated, because a photo
+  has one viewpoint: `src/sections/heroCamera.ts` turns one progress number into a 2D zoom/pan of `.hero-art` and a
+  CSS 3D transform of the headline block (`.hl`), whose perspective is matched to the photo's horizon. The rest frame
+  is the untransformed layout (whole picture, headline upright in the sky), which is also the reduced-motion and JS-off
+  state, so contrast is measured on the same frame everywhere. The real headline stays an HTML `<h1>` (one span per
+  word, transformed with its traces, never drawn into a canvas); the traces are an aria-hidden SVG built in the browser
+  from the shaped words (canvas mask + marching squares, `src/sections/heroTraces.ts`), so Arabic joins correctly with
+  no text library. The pin is CSS (`position: sticky` in a track `--hero-pin` screens tall, only with JS and motion
+  allowed): the page has its full height at first paint, so a reload mid-story keeps its place. No three.js: the world
+  is the photo. Reduced motion and JS off: everything lit at once, no pin, no guide, no camera.
 - **The header contract: `<html data-stage>`.** `"intro"` while the visitor is inside the pinned hero story, `"site"`
   once it has ended and the page releases (and `"intro"` again on scrolling back into it). **Unset** when there is no
   pinned story (reduced motion, JS off): the header then shows the full site navigation. Only the hero writes it; the

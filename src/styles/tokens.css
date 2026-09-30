@@ -63,10 +63,11 @@
   --hero-trace-glow: rgba(47, 211, 158, .24);  /* the soft halo along a lit outline */
   --hero-trace-head: #E6FFF5;                  /* the light running around a letter as it powers on */
   --hero-trace-run: .1;       /* length of that light, as a share of the letter outline */
+  --hero-pulse-run: .32;      /* v4: length of the gold pulse from the chip, as a share of the letter outline */
+  --hero-etch: .72;           /* v4: how dark an unlit letter lies on the lit board (fill opacity of its shape) */
   /* The hero image (concept C). Unitless: read by the scene through number(). */
   --hero-settle: 2.4s;        /* on load: the image eases back from slightly zoomed to rest */
   --hero-settle-from: 1.06;   /* its starting scale */
-  --hero-push: 1.16;          /* on scroll: how far the image is pushed in by the end of the pinned story */
   --hero-min: max(100svh, min(56.25vw, 1080px)); /* tall enough on wide screens to keep the image's sky */
 }
 /* The page's own ground (follows the theme), for a .night scene's fade into the section below it. */

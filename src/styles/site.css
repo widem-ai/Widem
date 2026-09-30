@@ -145,11 +145,11 @@ main { position: relative; overflow-x: clip; }
   .js .hero-track { height: calc(var(--hero-min) + var(--hero-pin) * 100svh); }
   .js .hero-track > .hero { position: sticky; top: 0; }
 }
-.hero-art { position: absolute; inset: 0; z-index: -2; transform-origin: 50% 66%; }
+.hero-art { position: absolute; inset: 0; z-index: -2; transform-origin: 0 0; }
 .hero-art img { position: absolute; inset: 0; width: 100%; height: 100%; display: block;
   object-fit: cover; object-position: 50% 100%; transform-origin: 50% 66%; }
 /* A soft pool of night behind the text, and the fade into the next section. */
-.hero::after { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+.hero::after { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: var(--scrim, 1);
   background: linear-gradient(to bottom, var(--ground) 0%, color-mix(in srgb, var(--ground) 84%, transparent) 38%,
                 color-mix(in srgb, var(--ground) 62%, transparent) 55%, transparent 74%),
               linear-gradient(to bottom, transparent 84%, var(--ground-page)); }
@@ -177,6 +177,26 @@ main { position: relative; overflow-x: clip; }
 .tw .r { stroke: var(--hero-trace-head); stroke-width: max(2px, .032em);
   stroke-dasharray: var(--hero-trace-run) 2; stroke-dashoffset: calc(var(--d) - 1 + var(--hero-trace-run));
   opacity: min(1, calc(var(--d) * 8)); }
+/* v4: the gold pulse from the chip (the "you are free" moment), once round every letter, driven by --g (1 -> 0). */
+.tw { --g: 0; }
+.tw .p { stroke: var(--signal); stroke-width: max(2.5px, .04em); filter: drop-shadow(0 0 .12em var(--signal)); stroke-dasharray: var(--hero-pulse-run) 2;
+  stroke-dashoffset: calc(var(--g) - 1 + var(--hero-pulse-run));
+  opacity: calc(min(1, var(--g) * 8) * min(1, (1 - var(--g)) * 8)); }
+.tw .f { fill: var(--signal); fill-rule: evenodd; stroke: none; fill-opacity: calc(min(1, var(--g) * 3) * min(1, (1 - var(--g)) * 3) * .8); }
+
+/* v4, the flight (motion on, heroCamera.ts): the photo is the world. The headline plane lies on the board and stands
+   up as the view rises (a 3D transform written per frame from one progress number, origin top-left). While it lies
+   on the lit board, each unlit letter is a dark etched shape; the shape fades as the letter powers on. */
+.flight .hl { transform-origin: 0 0; will-change: transform; }
+.flight .hero-art { will-change: transform; }
+.flight .tw .i { fill: var(--ground); fill-rule: evenodd; fill-opacity: calc(var(--d) * var(--hero-etch)); }
+.chip-glow { position: absolute; left: var(--chip-x, 50%); top: var(--chip-y, 64%); width: 30%; aspect-ratio: 1;
+  transform: translate(-50%, -50%); border-radius: 50%; pointer-events: none; opacity: 0; mix-blend-mode: screen;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--signal) 50%, transparent), transparent); }
+.feed { position: absolute; z-index: 1; left: calc(var(--chip-x, 50%) - 1px); top: var(--feed-top, 50%); width: 2px;
+  height: var(--feed-h, 0); border-radius: 2px; transform-origin: 50% 100%; visibility: hidden; pointer-events: none;
+  background: linear-gradient(to top, var(--signal), color-mix(in srgb, var(--signal) 20%, transparent));
+  box-shadow: 0 0 12px var(--signal); }
 
 .slogan { font-size: var(--t-md); font-weight: 300; color: var(--ink-soft); margin: 0 0 38px; }
 /* The scroll cue sits at the foot of the first screen (not of the hero, which can be taller), on its own
