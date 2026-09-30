@@ -30,6 +30,7 @@ It is never served from the React build.
 | Tailwind's theme | `src/styles/tailwind.css`: maps Tailwind colour/font names onto the tokens; its default palette is switched off |
 | Language and direction (`lang`, `dir`) | the page shell, set at pre-render; components never set `dir` themselves |
 | Theme (dark/light) | one `data-theme` attribute on `<html>`; stored per visitor |
+| Page stage (intro/site) | one `data-stage` attribute on `<html>`, set only by the hero scene: `intro` inside the pinned hero story, `site` after it. The header reads it and never measures the hero; unset (JS off, reduced motion) = full navigation. Added 2026-10-01 |
 | Scroll scenes | one component per section under `src/sections/`, each owning its own GSAP context and cleanup |
 | Shared scroll utilities (the route line, docks) | `src/scroll/`: nothing else measures layout for scroll |
 | SEO tags, hreflang, JSON-LD | `src/seo/`, rendered into the HTML at pre-render (never injected after load) |
@@ -83,6 +84,8 @@ Language switch: a link to the same section in the other page (A2), not a client
 ## 6. What can never break?
 
 - Content is readable with JS off and with reduced motion (final state, nothing hidden).
+- The header in the intro stage keeps the brand and AR|EN reachable; whatever it hides is `visibility:hidden`, so
+  it is out of the Tab order too (checked by a real Tab walk).
 - `/` and `/ar/` have the same sections, strings and links (A14); Arabic is `dir="rtl"` and mirrored.
 - Lighthouse Performance ≥ 90 and Accessibility ≥ 95 in both languages **with** the scenes (A6).
 - No horizontal scroll at any width; keyboard focus never trapped by a pinned scene.
