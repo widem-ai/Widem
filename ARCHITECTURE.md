@@ -71,7 +71,7 @@ prototype at runtime.
 **Banned:** hard-coded visible strings in components · raw colours or pixel timings outside tokens · a scroll
 scene measuring layout itself instead of `src/scroll/` · animating layout properties (only `transform`,
 `opacity`) · any tracker, cookie, form or third-party script except fonts and the booking link · client
-names, emails, internal URLs or keys anywhere (A5 grep fails the build) · the three banned competitor lines (A8).
+names, emails, internal URLs or keys anywhere (A5 grep fails the build) · the three banned competitor lines (A8) · a raw colour in a Tailwind class (`bg-[#...]`) or Tailwind's default palette (the check fails).
 
 ## 5. How does data actually move?
 
