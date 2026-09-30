@@ -5,20 +5,40 @@
 a { color: inherit; }
 
 /* ---------- header ---------- */
-.site-head { position: fixed; inset-block-start: 0; inset-inline: 0; z-index: 40;
-  background: color-mix(in srgb, var(--ground) 84%, transparent); backdrop-filter: blur(14px); }
-.head-in { max-width: var(--page-max); margin: 0 auto; padding: var(--space-3) var(--gutter);
-  display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
+/* Two stages (Header.tsx): <html data-stage="intro"> = brand + AR|EN floating on the hero; "site" (or unset) = the
+   full bar. The bar's ground and its signal trace are layers (::before, ::after) so they can arrive by transform. */
+.site-head { position: fixed; inset-block-start: 0; inset-inline: 0; z-index: 40; isolation: isolate; color: var(--ink); }
+.site-head::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: color-mix(in srgb, var(--ground) 84%, transparent); backdrop-filter: blur(14px);
+  transition: opacity var(--arrive) var(--ease-out), transform var(--arrive) var(--ease-out); }
+/* The signal trace: a hairline of the brand green along the lower edge; it runs across once as the site arrives. */
+.site-head::after { content: ""; position: absolute; inset-inline: 0; inset-block-end: 0; height: 1px; pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--action-bright) 18%, var(--action-bright) 82%, transparent);
+  opacity: .32; transform-origin: 0 50%; transition: opacity var(--leave); }
+[dir="rtl"] .site-head::after { transform-origin: 100% 50%; }
+.head-in { position: relative; max-width: var(--page-max); margin: 0 auto; padding: var(--space-3) var(--gutter);
+  display: flex; align-items: center; gap: var(--space-4); }
 
-.brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.25rem;
+.brand { display: inline-flex; align-items: center; gap: 10px; min-height: var(--target); font-weight: 700; font-size: 1.25rem;
   letter-spacing: -0.02em; text-decoration: none; }
 .brand svg { width: 22px; height: 22px; fill: none; stroke-linecap: round; }
 .brand rect { fill: var(--die); stroke: var(--action-bright); stroke-width: 1.6; }
 .brand path { stroke: var(--action-bright); stroke-width: 1.4; }
 
-.ctrl { display: flex; align-items: center; gap: var(--space-3); }
+/* Links, with the prototype's signal line under the one you point at (moved by transform, Header.tsx). */
+.nav { position: relative; display: none; gap: 2px; margin-inline-start: var(--space-4); }
+.nav a { position: relative; display: inline-flex; align-items: center; min-height: var(--target); padding: 0 10px;
+  white-space: nowrap; color: var(--ink-soft); text-decoration: none; font-size: 0.94rem; border-radius: 8px; }
+.nav a:hover { color: var(--ink); text-shadow: 0 0 12px var(--glow); }
+.nav-sig { position: absolute; inset-block-end: 6px; left: 0; width: 100px; height: 2px; border-radius: 2px;
+  background: var(--action-bright); box-shadow: 0 0 10px var(--glow); transform-origin: 0 50%; transform: scaleX(0);
+  opacity: 0; pointer-events: none; transition: transform .35s var(--ease-out), opacity var(--dur-fast); }
 
-.icon-btn { display: grid; place-items: center; width: 38px; height: 38px; border-radius: var(--radius);
+.ctrl { display: flex; align-items: center; gap: var(--space-3); margin-inline-start: auto; }
+.slot { display: inline-flex; }
+.book-slot, .theme-slot { display: none; }
+
+.icon-btn { display: grid; place-items: center; width: var(--target); height: var(--target); border-radius: var(--radius);
   border: 1px solid var(--die-line); background: transparent; color: var(--ink); cursor: pointer;
   transition: border-color var(--dur-fast), box-shadow var(--dur-fast); }
 .icon-btn:hover { border-color: var(--action-bright); box-shadow: 0 0 14px var(--glow); }
@@ -26,17 +46,74 @@ a { color: inherit; }
 .icon-btn .sun { display: none; }
 :root[data-theme="light"] .icon-btn .sun { display: block; }
 :root[data-theme="light"] .icon-btn .moon { display: none; }
-/* The theme button needs JS; with JS off it is not shown (the shell adds .js before paint). */
-:root:not(.js) .theme-btn { display: none; }
+/* The theme and menu buttons need JS; with JS off they are not shown (the shell adds .js before paint). */
+:root:not(.js) .theme-btn, :root:not(.js) .menu-slot { display: none; }
 
-/* Language switch: the current language is a label, the other is a real link. */
+/* The menu button: three lines that fold into a cross while the menu is open (transform/opacity only). */
+.menu-btn path { transform-box: fill-box; transform-origin: center; transition: transform var(--dur-med) var(--ease-out), opacity var(--dur-fast); }
+.menu-btn[aria-expanded="true"] .l1 { transform: translateY(5px) rotate(45deg); }
+.menu-btn[aria-expanded="true"] .l2 { opacity: 0; }
+.menu-btn[aria-expanded="true"] .l3 { transform: translateY(-5px) rotate(-45deg); }
+
+/* Language switch (the look it always had): the current language is a label, the other a real link; 44px to touch. */
 .seg { display: inline-grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--die-line);
-  border-radius: var(--radius); padding: 3px; gap: 0; }
-.seg-item { padding: 5px 10px; min-width: 40px; text-align: center; font-size: var(--t-sm); font-weight: 600;
-  line-height: 1.6; color: var(--ink-soft); text-decoration: none; border-radius: 7px;
-  transition: color var(--dur-fast), background-color var(--dur-fast); }
+  border-radius: var(--radius); padding: 3px; gap: 0; transition: transform var(--arrive) var(--ease-out); }
+.seg-item { position: relative; display: grid; place-items: center; min-width: 40px; min-height: calc(var(--target) - 8px);
+  padding: 0 10px; font-size: var(--t-sm); font-weight: 600; line-height: 1; color: var(--ink-soft); text-decoration: none;
+  border-radius: 7px; transition: color var(--dur-fast), background-color var(--dur-fast); }
+a.seg-item::after { content: ""; position: absolute; inset: -4px 0; }
 a.seg-item:hover { color: var(--ink); }
 .seg-item.on { background: var(--action); color: var(--action-ink); box-shadow: 0 0 12px var(--glow); }
+
+/* The phone menu: a panel under the bar; it opens by fading and dropping into place, its rows following in order. */
+.mnav { position: absolute; inset-inline: 0; inset-block-start: 100%; display: grid; gap: 2px;
+  padding: var(--space-2) var(--gutter) var(--space-5); background: var(--ground); border-block-end: 1px solid var(--line);
+  opacity: 0; visibility: hidden; transform: translateY(-8px);
+  transition: opacity var(--leave), transform var(--leave), visibility 0s var(--leave); }
+.mnav.open { opacity: 1; visibility: visible; transform: none;
+  transition: opacity var(--dur-med) var(--ease-out), transform var(--dur-med) var(--ease-out), visibility 0s; }
+.mnav > a { display: flex; align-items: center; min-height: var(--target); color: var(--ink); text-decoration: none; font-size: 1.05rem; }
+.mnav > a, .mnav-row { opacity: 0; transform: translateY(-6px); }
+.mnav.open > a, .mnav.open .mnav-row { opacity: 1; transform: none;
+  transition: opacity var(--dur-med) var(--ease-out) calc(var(--i) * var(--arrive-step)),
+    transform var(--dur-med) var(--ease-out) calc(var(--i) * var(--arrive-step)); }
+.mnav-row { display: flex; gap: var(--space-3); align-items: center; margin-block-start: var(--space-3); }
+.mnav-row .btn { flex: 1; }
+
+/* Wider screens: the button joins the bar at 640px; the links and theme button replace the menu at 1180px. */
+@media (min-width: 640px) { .book-slot { display: inline-flex; } }
+@media (min-width: 1180px) {
+  .nav { display: flex; }
+  .theme-slot { display: inline-flex; }
+  .menu-slot, .mnav { display: none; }
+}
+
+/* ----- The arrival (intro -> site): the bar's ground drops in, the trace runs along its edge from the reading
+   start, then the links, theme button and "Book a call" fade down into place one after another. ----- */
+.late { transition: opacity var(--arrive) var(--ease-out) calc(var(--i, 0) * var(--arrive-step) + 120ms),
+  transform var(--arrive) var(--ease-out) calc(var(--i, 0) * var(--arrive-step) + 120ms), visibility 0s; }
+.nav a { transition: color var(--dur-fast), text-shadow var(--dur-fast),
+  opacity var(--arrive) var(--ease-out) calc(var(--i) * var(--arrive-step) + 120ms),
+  transform var(--arrive) var(--ease-out) calc(var(--i) * var(--arrive-step) + 120ms); }
+.nav.late { --i: 0; }
+.menu-slot { --i: 2; }
+.theme-slot { --i: 8; }
+.book-slot { --i: 9; }
+:root[data-stage="site"] .site-head::after { animation: trace var(--arrive-trace) var(--ease-out) 80ms both; }
+@keyframes trace { from { transform: scaleX(0); opacity: 1; } 60% { opacity: 1; } to { transform: scaleX(1); opacity: .32; } }
+
+/* ----- Stage intro: everything `late` steps out (visibility:hidden also takes it out of the Tab order); the brand
+   and AR|EN stay. Below 1180px the switch slides over into the menu button's place, so it sits on the edge. ----- */
+:root[data-stage="intro"] .site-head::before { opacity: 0; transform: translateY(-100%); transition-duration: var(--leave); }
+:root[data-stage="intro"] .site-head::after { opacity: 0; }
+:root[data-stage="intro"] .late, :root[data-stage="intro"] .nav a { opacity: 0; transform: translateY(-8px);
+  transition: opacity var(--leave), transform var(--leave), visibility 0s var(--leave); }
+:root[data-stage="intro"] .late { visibility: hidden; }
+:root[data-stage="intro"] .mnav { visibility: hidden; }
+@media (max-width: 1179.98px) {
+  :root[data-stage="intro"] .head-in .seg { transform: translateX(calc(var(--target) + var(--space-3))); }
+  :root[dir="rtl"][data-stage="intro"] .head-in .seg { transform: translateX(calc(-1 * (var(--target) + var(--space-3)))); }
+}
 
 /* ---------- button ---------- */
 .btn { position: relative; display: inline-flex; align-items: center; justify-content: center; min-height: 52px;
@@ -50,6 +127,8 @@ a.seg-item:hover { color: var(--ink); }
   background: linear-gradient(100deg, transparent 30%, var(--sheen) 50%, transparent 70%);
   transform: translateX(-120%); animation: sheen var(--sheen-cycle) ease-in-out infinite; }
 @keyframes sheen { 60%, 100% { transform: translateX(120%); } }
+/* The header's smaller button: same sheen, same cycle; 44px tall to touch. */
+.btn-sm { min-height: var(--target); padding: 0 18px; font-size: 0.9rem; white-space: nowrap; }
 
 /* ---------- hero ---------- */
 main { position: relative; overflow-x: clip; }

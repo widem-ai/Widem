@@ -13,6 +13,11 @@ export const en = {
     langShort: { en: "EN", ar: "AR" },
     themeToLight: "Switch to light mode",
     themeToDark: "Switch to dark mode",
+    // The navigation (prototype header, word for word). Keys are the section ids the links point to.
+    navLabel: "Main",
+    nav: { problem: "Why", services: "Services", compare: "Compare", work: "Work", how: "How we work", about: "About", faq: "FAQ" },
+    book: "Book a call",
+    menu: "Menu",
   },
   hero: {
     // The headline reads before + word + after. headlineWord is the static word (JS off, reduced motion,

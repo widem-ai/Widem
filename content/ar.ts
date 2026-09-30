@@ -17,6 +17,10 @@ export const ar: Content = {
     langShort: { en: "EN", ar: "AR" },
     themeToLight: "التبديل إلى الوضع الفاتح",
     themeToDark: "التبديل إلى الوضع الداكن",
+    navLabel: "القائمة الرئيسية", // NEW: the prototype left this label in English ("Main")
+    nav: { problem: "لماذا", services: "خدماتنا", compare: "المقارنة", work: "أعمالنا", how: "كيف نعمل", about: "من نحن", faq: "الأسئلة" },
+    book: "احجز مكالمة",
+    menu: "القائمة", // NEW: the prototype left this label in English ("Menu")
   },
   hero: {
     headlineBefore: "تخلّص من",
