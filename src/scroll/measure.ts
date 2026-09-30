@@ -28,3 +28,11 @@ export function observeVisible(el: Element, onChange: (visible: boolean) => void
   io.observe(el);
   return () => io.disconnect();
 }
+
+export type Box = { x: number; y: number; width: number; height: number };
+
+/** Layout boxes of inline elements (e.g. the words of a headline) relative to their offset parent, from offset
+ *  sizes: unaffected by transforms or a pinned scene. Words never wrap inside themselves, so one box each. */
+export function inlineBoxes(els: HTMLElement[]): Box[] {
+  return els.map((el) => ({ x: el.offsetLeft, y: el.offsetTop, width: el.offsetWidth, height: el.offsetHeight }));
+}

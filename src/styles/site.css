@@ -58,6 +58,14 @@ main { position: relative; overflow-x: clip; }
    to the page's own ground. */
 .hero { position: relative; min-height: var(--hero-min); display: grid; place-items: start center; overflow: hidden;
   isolation: isolate; padding: clamp(96px, 12.5svh, 150px) var(--gutter) 120px; background: var(--ground); color: var(--ink); }
+/* The pinned story (v3): with JS and motion, the hero sits in a track --hero-pin screens taller than itself and
+   stays stuck to the top while the track scrolls past (CSS sticky: the page has its full height at first paint,
+   so a reload mid-story keeps its place, and there is no layout jump when the script starts). Without JS or
+   with reduced motion there is no track height and nothing sticks: the hero is an ordinary first screen. */
+@media (prefers-reduced-motion: no-preference) {
+  .js .hero-track { height: calc(var(--hero-min) + var(--hero-pin) * 100svh); }
+  .js .hero-track > .hero { position: sticky; top: 0; }
+}
 .hero-art { position: absolute; inset: 0; z-index: -2; transform-origin: 50% 66%; }
 .hero-art img { position: absolute; inset: 0; width: 100%; height: 100%; display: block;
   object-fit: cover; object-position: 50% 100%; transform-origin: 50% 66%; }
@@ -68,37 +76,28 @@ main { position: relative; overflow-x: clip; }
               linear-gradient(to bottom, transparent 84%, var(--ground-page)); }
 .hero-in { position: relative; z-index: 2; max-width: 1060px; text-align: center; display: grid; justify-items: center; }
 
-/* Headline: the real <h1> plus two aria-hidden copies laid exactly over it (same type, same width), used
-   only for the power-on: an outline copy (the unlit chip) and a halo copy (the flash as it lights). Each
-   copy only fades, so nothing but opacity and transform ever animates. */
+/* Headline (v3): the real <h1> is HTML text, one span per word (the lit fill). Over it, an aria-hidden SVG
+   (.traces) holds each word's letter outlines as circuit traces: an idle etched outline, and a lit outline with
+   its halo and a running light, revealed by the scene through one custom property per word (--d: 1 unlit,
+   0 lit; the default is lit, so reduced motion shows the final state). Only opacity, transform and stroke
+   dashing change. Built by JS after the font loads; with JS off the headline is plain lit text. */
 .hl { position: relative; margin: 0 0 22px; }
 .hl-text { font-size: var(--t-hero); line-height: 1.06; letter-spacing: -0.035em; font-weight: 600;
   margin: 0; max-width: 19ch; text-wrap: balance; }
 [dir="rtl"] .hl-text { letter-spacing: 0; line-height: 1.32; }
 .h-vis { display: block; }
-.hl-fx { position: absolute; inset: 0; max-width: none; pointer-events: none; opacity: 0; visibility: hidden; }
-.hl-fx .slot { display: inline-block; }
-.hl-outline { color: transparent; -webkit-text-stroke: 1px color-mix(in srgb, var(--action-bright) 35%, transparent); }
-.hl-glow { color: transparent; text-shadow: 0 0 30px var(--action-bright), 0 0 60px var(--glow); }
-/* The scan line: a full-width strip whose bar starts at the inline start; the scene slides the strip by
-   its own width, so the bar crosses the headline without anything being measured. */
-.hl-scan { position: absolute; inset-block: -8%; inset-inline: 0; max-width: none; }
-.hl-scan i { position: absolute; inset-block: 0; inset-inline-start: 0; width: 3px; background: var(--action-bright);
-  box-shadow: 0 0 24px 8px var(--glow), 0 0 60px 16px var(--glow); }
-
-/* The rotating word: green shading warm at its end; a gold glint crosses it now and then. The glint is a
-   gold copy of the word seen through a soft window: the window slides one way, the copy the other, so the
-   gold travels across letters that stay still (transform only, where the prototype moved background-position). */
-.rot { position: relative; display: inline-block;
-  background: linear-gradient(90deg, var(--action-bright) 15%, color-mix(in srgb, var(--action-bright) 15%, var(--signal)) 100%);
-  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: var(--action-bright); }
-[dir="rtl"] .rot { background-image: linear-gradient(270deg, var(--action-bright) 15%, color-mix(in srgb, var(--action-bright) 15%, var(--signal)) 100%); }
-.glint { position: absolute; inset: 0; overflow: hidden; pointer-events: none; opacity: 0;
-  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 50%, transparent 100%);
-  mask-image: linear-gradient(90deg, transparent 0%, #000 50%, transparent 100%); }
-.glint i { position: absolute; inset: 0; font-style: normal; white-space: nowrap; }
-.glint i::before { content: attr(data-word); -webkit-text-fill-color: var(--signal); color: var(--signal); }
-:root:not(.js) .glint { display: none; }
+.h-vis .w { color: var(--ink); text-shadow: 0 0 .4em var(--glow); }
+.traces { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none;
+  font-size: var(--t-hero); fill: none; stroke-linejoin: round; stroke-linecap: round; visibility: hidden; }
+.traced .traces { visibility: visible; }
+.tw { --d: 0; }
+.tw .i { stroke: var(--hero-trace-idle); stroke-width: max(1px, .014em); }
+.tw .g, .tw .l { stroke-dasharray: 1 1; stroke-dashoffset: var(--d); }
+.tw .g { stroke: var(--hero-trace-glow); stroke-width: max(4px, .07em); }
+.tw .l { stroke: var(--action-bright); stroke-width: max(1.2px, .02em); }
+.tw .r { stroke: var(--hero-trace-head); stroke-width: max(2px, .032em);
+  stroke-dasharray: var(--hero-trace-run) 2; stroke-dashoffset: calc(var(--d) - 1 + var(--hero-trace-run));
+  opacity: min(1, calc(var(--d) * 8)); }
 
 .slogan { font-size: var(--t-md); font-weight: 300; color: var(--ink-soft); margin: 0 0 38px; }
 /* The scroll cue sits at the foot of the first screen (not of the hero, which can be taller), on its own
@@ -112,16 +111,33 @@ main { position: relative; overflow-x: clip; }
   transition: color var(--dur-fast), box-shadow var(--dur-fast); }
 .cue:hover { color: var(--action-bright); box-shadow: 0 0 0 1px var(--action-bright), 0 0 18px var(--glow); }
 
-/* Boot state: painted before any JS runs (the shell adds .js before paint), so the headline starts as an
-   unlit outline instead of flashing lit and then going dark. Only when motion is allowed; with reduced
-   motion or JS off the hero paints in its final state. If the scene never starts (script failed), the
-   fallback animation shows everything after --hero-fallback. */
+/* The scroll guide (v3): at the foot of the first screen while the pinned story waits for the first scroll;
+   the scene fades it out as scrolling starts. Only with JS and motion: without them there is no story to
+   scroll through, so it would be a false instruction. A pulse runs down a short trace, over and over. */
+.guide { display: none; position: absolute; z-index: 2; inset-inline: 0; margin: 0 auto; width: max-content;
+  max-width: calc(100% - 2 * var(--gutter)); inset-block-start: calc(min(100svh, 100%) - 96px);
+  align-items: center; gap: var(--space-3); min-height: 44px; padding: 0 var(--space-5) 0 var(--space-4);
+  color: var(--ink); font-size: var(--t-sm); border-radius: 999px;
+  background: color-mix(in srgb, var(--ground) 88%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--action-bright) 30%, transparent), 0 0 22px -6px var(--glow); }
+@media (prefers-reduced-motion: no-preference) { .js .guide { display: flex; } }
+.guide-line { position: relative; width: 2px; height: 22px; border-radius: 2px; overflow: hidden;
+  background: var(--hero-trace-idle); }
+.guide-line i { position: absolute; inset-inline: 0; top: 0; height: 8px; border-radius: 2px;
+  background: var(--action-bright); box-shadow: 0 0 8px var(--action-bright);
+  animation: guide-pulse var(--hero-guide-cycle) ease-in-out infinite; }
+@keyframes guide-pulse { 0% { transform: translateY(-8px); opacity: 0; } 25% { opacity: 1; } 80%, 100% { transform: translateY(22px); opacity: 0; } }
+
+/* Boot state: painted before any JS runs (the shell adds .js before paint), so with motion allowed the words
+   start unlit and the subline/button/cue hidden, as the story's first frame, instead of flashing lit and going
+   dark. With reduced motion or JS off the hero paints in its final state. If the scene never starts (script
+   failed), the fallback animation shows everything (and drops the guide) after --hero-fallback. */
 @media (prefers-reduced-motion: no-preference) {
-  .js .hero.boot .hl h1,
+  .js .hero.boot .h-vis .w,
   .js .hero.boot .slogan, .js .hero.boot .hero-in > .btn, .js .hero.boot .cue {
     opacity: 0; animation: hero-fallback 0s var(--hero-fallback) forwards; }
   .js .hero.boot .slogan, .js .hero.boot .hero-in > .btn, .js .hero.boot .cue { transform: translateY(10px); }
-  .js .hero.boot .hl-outline { opacity: 1; visibility: visible; animation: hero-fallback-out 0s var(--hero-fallback) forwards; }
+  .js .hero.boot .guide { animation: hero-fallback-out 0s var(--hero-fallback) forwards; }
 }
 @keyframes hero-fallback { to { opacity: 1; transform: none; } }
 @keyframes hero-fallback-out { to { opacity: 0; visibility: hidden; } }
