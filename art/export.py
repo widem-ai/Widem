@@ -1,4 +1,5 @@
-# Turns the art-directed hero masters in art/ into the web files in public/hero/.
+# Turns the hero poster masters in art/ into the web files in public/hero/. The masters are stills rendered from the
+# three.js scene itself at rest (`node scripts/poster.mjs`, after `npm run build`); re-render them when the scene changes.
 # Run by hand when a master changes: `python art/export.py` (needs Pillow with AVIF support).
 # Masters are kept in the repo so the web files can always be rebuilt; only public/hero/ is served.
 from pathlib import Path
@@ -10,8 +11,8 @@ OUT.mkdir(parents=True, exist_ok=True)
 
 # name, master file, output width, AVIF quality, WebP quality
 JOBS = [
-    ("desktop", "hero-c-desktop.png", 1680, 72, 84),
-    ("phone", "hero-c-phone.png", 900, 72, 84),
+    ("scene-wide", "scene-wide.png", 1680, 70, 82),
+    ("scene-tall", "scene-tall.png", 900, 70, 82),
 ]
 
 for name, master, width, avif_q, webp_q in JOBS:

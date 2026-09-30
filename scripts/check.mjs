@@ -216,7 +216,6 @@ const PROBE = `
   const $ = (s) => document.querySelector(s);
   const heroParts = { h1: $("#hero h1"), slogan: $("#hero .slogan"), button: $("#hero .btn"), cue: $("#hero .cue") };
   const words = () => [...document.querySelectorAll("#hero .h-vis .w")];
-  const dash = () => [...document.querySelectorAll("#hero .tw")].map((g) => Math.round(parseFloat(getComputedStyle(g).getPropertyValue("--d")) * 1000) / 1000);
   // The pinned story's scroll range: the track's height minus the (sticky) hero's own (0 when not pinned).
   const story = () => { const h = $("#hero"), sp = h.parentElement, pinned = getComputedStyle(h).position === "sticky" && sp.offsetHeight > h.offsetHeight;
     return { pinned, start: sp.getBoundingClientRect().top + scrollY, range: pinned ? sp.offsetHeight - h.offsetHeight : 0 }; };
@@ -237,19 +236,19 @@ async function until(page, expr, ms) {
 }
 const partsJson = `JSON.stringify(Object.fromEntries(Object.entries(heroParts).map(([k, el]) => [k, vis(el)])))`;
 
-// 7. Reduced motion: the hero's final state (every word lit, traces lit), everything visible, nothing moving,
-// no pin, no scroll guide, no data-stage (states list).
+// 7. Reduced motion: the poster with the HTML headline, everything visible, nothing moving, no scene started, no pin,
+// no scroll guide, no data-stage (states list).
 async function reducedMotion() {
   const { page, url } = await browser();
   const fails = [];
   const snap = `const art = $("#hero-art"); return JSON.stringify({
     parts: JSON.parse(${partsJson}),
-    words: words().map(vis), dash: dash(), traced: $("#hero").classList.contains("traced"),
+    words: words().map(vis), scene: $("#hero").__sceneState ?? null, canvas: vis($("#hero .hero-scene")),
     guide: vis($("#hero .guide")), pinned: story().pinned, stage: document.documentElement.hasAttribute("data-stage"),
     booting: $("#hero")?.classList.contains("boot") ?? null,
     moving: [...document.querySelectorAll("#hero *")].map((e) => getComputedStyle(e).transform + "|" + getComputedStyle(e).opacity).join(","),
-    art: art ? art.complete && art.naturalWidth > 0 : null,
-    artMove: art ? getComputedStyle(art).transform + "|" + getComputedStyle(art.closest(".hero-art")).transform : null,
+    art: art ? art.complete && art.naturalWidth > 0 && vis(art) === 1 : null,
+    artMove: art ? getComputedStyle($(".hero-poster")).transform : null,
     textOpacity: vis($("#hero .hero-in")) });`;
   for (const lang of ["en", "ar"]) for (const width of [390, 1440]) {
     const where = `${lang} ${width}px`;
@@ -257,62 +256,77 @@ async function reducedMotion() {
     await page.wait(600);
     const a = JSON.parse(await probe(page, snap));
     for (const [k, o] of Object.entries(a.parts)) if (o !== 1) fails.push(`${where}: ${k} opacity ${o}, want 1`);
-    if (!a.words.length || a.words.some((o) => o !== 1)) fails.push(`${where}: headline words not all lit (${a.words})`);
-    if (!a.traced || a.dash.some((d) => d !== 0)) fails.push(`${where}: traces not built fully lit (traced ${a.traced}, --d ${a.dash})`);
+    if (!a.words.length || a.words.some((o) => o !== 1)) fails.push(`${where}: headline words not all shown (${a.words})`);
+    if (a.scene !== null || a.canvas !== 0) fails.push(`${where}: the 3D scene started with reduced motion (state ${a.scene}, canvas opacity ${a.canvas}); the poster is the whole hero`);
     if (a.guide !== 0) fails.push(`${where}: the scroll guide shows (opacity ${a.guide}), but there is no scroll story`);
     if (a.pinned) fails.push(`${where}: the hero is pinned with reduced motion`);
     if (a.stage) fails.push(`${where}: <html data-stage> is set with reduced motion; it must be unset`);
     if (a.booting !== false) fails.push(`${where}: hero still in its boot state`);
-    if (a.art !== true) fails.push(`${where}: the hero image is missing or did not load`);
+    if (a.art !== true) fails.push(`${where}: the poster is missing, hidden or did not load`);
     await page.wait(2800);
     const b = JSON.parse(await probe(page, snap));
     if (b.moving !== a.moving) fails.push(`${where}: hero elements changed transform/opacity over 2.8 s`);
-    // Scrolling must not move anything either: no push-in, no lifting text.
     await page.evaluate(`window.scrollTo(0, 260)`);
     await page.wait(500);
     const s = JSON.parse(await probe(page, snap));
-    if (s.artMove !== "none|none") fails.push(`${where}: the hero image moves on scroll with reduced motion (${s.artMove})`);
+    if (s.artMove !== "none") fails.push(`${where}: the poster moves on scroll with reduced motion (${s.artMove})`);
     if (s.textOpacity !== 1) fails.push(`${where}: the hero text fades on scroll with reduced motion (opacity ${s.textOpacity})`);
     if (s.stage) fails.push(`${where}: <html data-stage> set after scrolling with reduced motion`);
   }
   return fails;
 }
 
-// 8. The trace story (hero v3), motion on, 1440x900 and 390x844, EN and AR: every word dark (fill hidden, outline
-// unlit) before the pinned scroll; partly lit in reading order halfway; all lit, with subline, button and cue, at
-// the end; dark again back at the top. Progress follows the scroll both ways.
+/** Open with motion on and wait for the 3D scene to fade in over the poster; returns false if it never did. */
+async function openScene(page, href, width, height) {
+  await open(page, href, { width, height });
+  const on = await until(page, `$("#hero").classList.contains("scene-on") && !$("#hero").classList.contains("boot")`, 9000);
+  if (on) await page.wait(1100); // the canvas's fade
+  return !!on;
+}
+const sceneSnap = `const s = $("#hero").__scene; return JSON.stringify({ fill: words().map(vis), board: s ? s.words() : [], cam: s ? s.cam() : -1,
+  chip: s ? s.chip() : null, rest: [heroParts.slogan, heroParts.button, heroParts.cue].map(vis), pinned: story().pinned,
+  canvas: vis($("#hero .hero-scene")), h1: $("#hero h1 .sr").textContent.replace(/\\s+/g, " ").trim(), state: $("#hero").__sceneState })`;
+
+// 8. The 3D story, motion on, 1440x900 and 390x844, EN and AR: the scene replaces the poster; before the pinned
+// scroll every word on the board is dark, the chip whole on screen and the subline/button/cue hidden; halfway the
+// words are partly lit in reading order; at the end all lit with subline, button and cue; dark again back at the top.
+// At rest on phones the chip is wholly on or wholly off screen, never cut at the edge.
 const PHONE_DESK = [[1440, 900], [390, 844]];
 async function traceStory() {
   const { page, url } = await browser();
+  const { en } = await load("content/en.ts");
+  const { ar } = await load("content/ar.ts");
   const fails = [];
-  const snap = `return JSON.stringify({ fill: words().map(vis), dash: dash(), paths: [...document.querySelectorAll("#hero .tw")].map((g) => g.querySelectorAll(".l").length),
-    rest: [heroParts.slogan, heroParts.button, heroParts.cue].map(vis), pinned: story().pinned })`;
-  for (const lang of ["en", "ar"]) for (const [width, height] of PHONE_DESK) {
+  const inside = (c) => c && c.x0 >= 0.005 && c.x1 <= 0.995 && c.y0 >= 0.005 && c.y1 <= 0.995;
+  const outside = (c) => c && (c.x1 <= 0 || c.x0 >= 1 || c.y1 <= 0 || c.y0 >= 1);
+  for (const [lang, c] of [["en", en], ["ar", ar]]) for (const [width, height] of PHONE_DESK) {
     const where = `${lang} ${width}x${height}`;
-    await open(page, url(lang), { width, height });
-    const ready = await until(page, `$("#hero").classList.contains("traced") && !$("#hero").classList.contains("boot")`, 6000);
-    if (!ready) { fails.push(`${where}: the traces were never built`); continue; }
-    await page.wait(500);
-    const top = JSON.parse(await probe(page, snap));
+    if (!(await openScene(page, url(lang), width, height))) { fails.push(`${where}: the 3D scene never came up (${await probe(page, `return $("#hero").__sceneState ?? "not started"`)})`); continue; }
+    const top = JSON.parse(await probe(page, sceneSnap));
     if (!top.pinned) { fails.push(`${where}: the hero is not pinned with motion on`); continue; }
-    if (top.paths.some((n) => n < 1)) fails.push(`${where}: a word has no trace outline (${top.paths})`);
-    if (top.fill.some((o) => o !== 0) || top.dash.some((d) => d !== 1)) fails.push(`${where}: before scrolling, words are not dark (fill ${top.fill}, --d ${top.dash})`);
+    if (top.canvas !== 1) fails.push(`${where}: the scene's canvas is not shown (opacity ${top.canvas})`);
+    if (top.h1 !== headline(c.hero)) fails.push(`${where}: the <h1> reads "${top.h1}" with the scene on, want the headline`);
+    if (top.board.length !== top.fill.length) fails.push(`${where}: the board has ${top.board.length} words, the <h1> ${top.fill.length}`);
+    if (top.board.some((v) => v !== 0) || top.cam !== 0) fails.push(`${where}: before scrolling, the board is not at its first frame (words ${top.board}, camera ${top.cam})`);
+    if (!inside(top.chip)) fails.push(`${where}: at 0% the chip is cut by the screen edge (${JSON.stringify(top.chip)})`);
     if (top.rest.some((o) => o !== 0)) fails.push(`${where}: before scrolling, subline/button/cue already show (${top.rest})`);
     await page.evaluate(`(() => { ${PROBE} toStory(0.5); })()`);
     await page.wait(900);
-    const mid = JSON.parse(await probe(page, snap));
-    const lit = mid.fill.filter((o) => o === 1).length, n = mid.fill.length;
-    if (!(lit > 0 && lit < n)) fails.push(`${where}: halfway, ${lit}/${n} words are lit (want some, not all)`);
-    if (mid.fill.some((o, i) => i && o > mid.fill[i - 1])) fails.push(`${where}: halfway, words are not lit in reading order (${mid.fill})`);
+    const mid = JSON.parse(await probe(page, sceneSnap));
+    const lit = mid.board.filter((v) => v === 1).length, n = mid.board.length;
+    if (!(lit > 0 && lit < n)) fails.push(`${where}: halfway, ${lit}/${n} words on the board are lit (want some, not all)`);
+    if (mid.board.some((v, i) => i && v > mid.board[i - 1])) fails.push(`${where}: halfway, words are not lit in reading order (${mid.board})`);
+    if (!(mid.cam > 0.3 && mid.cam < 0.8)) fails.push(`${where}: halfway, the camera is at ${mid.cam} of its flight`);
     await page.evaluate(`(() => { ${PROBE} toStory(1); })()`);
     await page.wait(900);
-    const end = JSON.parse(await probe(page, snap));
-    if (end.fill.some((o) => o !== 1) || end.dash.some((d) => d !== 0)) fails.push(`${where}: after the pinned scroll, words are not all lit (fill ${end.fill}, --d ${end.dash})`);
+    const end = JSON.parse(await probe(page, sceneSnap));
+    if (end.board.some((v) => v !== 1) || end.cam !== 1) fails.push(`${where}: after the pinned scroll, the board is not at rest (words ${end.board}, camera ${end.cam})`);
     if (end.rest.some((o) => o !== 1)) fails.push(`${where}: after the pinned scroll, subline/button/cue are not all shown (${end.rest})`);
+    if (!inside(end.chip) && !outside(end.chip)) fails.push(`${where}: at rest the chip is cut by the screen edge (${JSON.stringify(end.chip)})`);
     await page.evaluate(`window.scrollTo({ top: 0, behavior: "instant" })`);
     await page.wait(900);
-    const back = JSON.parse(await probe(page, snap));
-    if (back.fill.some((o) => o !== 0) || back.dash.some((d) => d !== 1)) fails.push(`${where}: back at the top, words are not dark again (fill ${back.fill})`);
+    const back = JSON.parse(await probe(page, sceneSnap));
+    if (back.board.some((v) => v !== 0) || back.cam !== 0) fails.push(`${where}: back at the top, the board is not dark again (words ${back.board}, camera ${back.cam})`);
   }
   return fails;
 }
@@ -395,22 +409,26 @@ async function noHorizontalScroll() {
       const m = JSON.parse(await probe(page, widthNow));
       if (m.doc > m.view) fails.push(`${lang} ${width}px: page is ${m.doc}px wide in a ${m.view}px viewport`);
     }
-    // Resize 1440 -> 390 without reloading: still no overflow, and the image switches to the tall crop.
-    await open(page, url(lang), { width: 1440 });
-    await page.wait(800);
+    // Resize 1440 -> 390 without reloading: still no overflow, the poster switches to the tall crop, and the scene
+    // re-lays its headline for a narrow screen.
+    if (!(await openScene(page, url(lang), 1440, 900))) { fails.push(`${lang}: the 3D scene never came up`); continue; }
     await page.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
     await page.wait(900);
-    await until(page, `/phone\\./.test($("#hero-art")?.currentSrc ?? "") && $("#hero-art").complete`, 4000);
+    await until(page, `/scene-tall\\./.test($("#hero-art")?.currentSrc ?? "") && $("#hero-art").complete && $("#hero").__scene?.stats.layout === "narrow"`, 4000);
     const r = JSON.parse(await probe(page, `const art = $("#hero-art"); return JSON.stringify({ doc: document.documentElement.scrollWidth,
-      view: document.documentElement.clientWidth, src: art ? art.currentSrc : null, ok: art ? art.complete && art.naturalWidth > 0 : false })`));
+      view: document.documentElement.clientWidth, src: art ? art.currentSrc : null, ok: art ? art.complete && art.naturalWidth > 0 : false,
+      layout: $("#hero").__scene?.stats.layout, canvasW: $("#hero .hero-scene").width })`));
     if (r.doc > r.view) fails.push(`${lang} resized to 390px: page is ${r.doc}px wide`);
-    if (!/phone\./.test(r.src ?? "")) fails.push(`${lang} resized to 390px: the image is still "${r.src}", want the tall crop`);
-    else if (!r.ok) fails.push(`${lang} resized to 390px: the tall crop did not load`);
+    if (!/scene-tall\./.test(r.src ?? "")) fails.push(`${lang} resized to 390px: the poster is still "${r.src}", want the tall crop`);
+    else if (!r.ok) fails.push(`${lang} resized to 390px: the tall poster did not load`);
+    if (r.layout !== "narrow") fails.push(`${lang} resized to 390px: the scene kept its "${r.layout}" headline layout`);
+    if (!(r.canvasW > 0 && r.canvasW <= 390 * 2)) fails.push(`${lang} resized to 390px: the canvas is ${r.canvasW}px wide`);
   }
   return fails;
 }
 
-// 10. JS off: the pre-rendered hero is readable (headline, subhead, button all visible); no guide, no data-stage.
+// 10. JS off: the pre-rendered hero is readable over the poster (headline, subhead, button all visible); no canvas,
+// no guide, no data-stage.
 async function jsOff() {
   const { page, url } = await browser();
   const { en } = await load("content/en.ts");
@@ -418,13 +436,16 @@ async function jsOff() {
   const fails = [];
   for (const [lang, c] of [["en", en], ["ar", ar]]) {
     await open(page, url(lang), { width: 390, js: false });
+    await page.wait(400);
     const s = JSON.parse(await probe(page, `return JSON.stringify({
       parts: JSON.parse(${partsJson}),
       text: $("#hero h1 .h-vis") ? $("#hero h1 .h-vis").innerText.replace(/\\s+/g, " ").trim() : null,
-      traces: vis($("#hero .traces")), guide: vis($("#hero .guide")), stage: document.documentElement.hasAttribute("data-stage") })`));
+      canvas: vis($("#hero .hero-scene")), poster: $("#hero-art")?.complete && $("#hero-art").naturalWidth > 0 && vis($("#hero-art")) === 1,
+      guide: vis($("#hero .guide")), stage: document.documentElement.hasAttribute("data-stage") })`));
     for (const [k, o] of Object.entries(s.parts)) if (o !== 1) fails.push(`${lang} JS off: ${k} opacity ${o}, want 1`);
     if (s.text !== headline(c.hero)) fails.push(`${lang} JS off: visible headline reads "${s.text}", want "${headline(c.hero)}"`);
-    if (s.traces !== 0) fails.push(`${lang} JS off: the (empty) trace layer is showing`);
+    if (s.canvas !== 0) fails.push(`${lang} JS off: the (empty) scene canvas is showing`);
+    if (!s.poster) fails.push(`${lang} JS off: the poster is not shown`);
     if (s.guide !== 0) fails.push(`${lang} JS off: the scroll guide shows, but there is no scroll story`);
     if (s.stage) fails.push(`${lang} JS off: <html data-stage> is set`);
   }
@@ -432,10 +453,49 @@ async function jsOff() {
   return fails;
 }
 
+// 10b. No WebGL, and a weak device (2 cores): the scene is not run; the poster stays with the HTML headline, and the
+// story still works as light motion (the pin, the words fading on in reading order, the stage), with nothing logged.
+async function noScene() {
+  const { page, url } = await browser();
+  const fails = [];
+  const cases = [
+    ["no WebGL", "no-webgl", async () => (await page.send("Page.addScriptToEvaluateOnNewDocument", { source:
+      `(() => { const g = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function (t, o) { return /webgl/.test(t) ? null : g.call(this, t, o); }; })();` })).identifier],
+    ["weak device", "weak-device", async () => { await page.send("Emulation.setHardwareConcurrencyOverride", { hardwareConcurrency: 2 }); return null; }],
+  ];
+  for (const [name, want, setup] of cases) for (const lang of ["en", "ar"]) {
+    const where = `${lang} ${name}`;
+    const id = await setup();
+    await open(page, url(lang), { width: 390, height: 844 });
+    await until(page, `$("#hero").__sceneState === "${want}"`, 6000);
+    await page.wait(800);
+    const snap = `return JSON.stringify({ state: $("#hero").__sceneState ?? null, on: $("#hero").classList.contains("scene-on"), canvas: vis($("#hero .hero-scene")),
+      poster: $("#hero-art")?.complete && $("#hero-art").naturalWidth > 0 && vis($("#hero-art")) === 1, fill: words().map(vis), pinned: story().pinned,
+      stage: document.documentElement.dataset.stage ?? null, parts: JSON.parse(${partsJson}) })`;
+    const top = JSON.parse(await probe(page, snap));
+    if (top.state !== want) fails.push(`${where}: scene state "${top.state}", want "${want}"`);
+    if (top.on || top.canvas !== 0) fails.push(`${where}: the scene shows (canvas opacity ${top.canvas})`);
+    if (!top.poster) fails.push(`${where}: the poster is not shown`);
+    if (!top.pinned || top.stage !== "intro") fails.push(`${where}: no pinned story (pinned ${top.pinned}, stage ${top.stage})`);
+    if (top.fill.some((o) => o !== 0)) fails.push(`${where}: before scrolling the words already show (${top.fill})`);
+    await page.evaluate(`(() => { ${PROBE} toStory(0.5); })()`);
+    await page.wait(900);
+    const mid = JSON.parse(await probe(page, snap));
+    if (mid.fill.some((o, i) => i && o > mid.fill[i - 1]) || !mid.fill.some((o) => o === 1)) fails.push(`${where}: halfway the words are not fading on in reading order (${mid.fill})`);
+    await page.evaluate(`(() => { ${PROBE} toStory(1.2); })()`);
+    await page.wait(900);
+    const end = JSON.parse(await probe(page, snap));
+    for (const [k, o] of Object.entries(end.parts)) if (o !== 1) fails.push(`${where}: after the story, ${k} opacity ${o}, want 1`);
+    if (end.stage !== "site") fails.push(`${where}: after the story data-stage is ${end.stage}, want "site"`);
+    if (id) await page.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: id });
+    else await page.send("Emulation.setHardwareConcurrencyOverride", { hardwareConcurrency: 8 });
+  }
+  return fails;
+}
 
-// 11. The hero image as files: both crops in both formats, inside the weight budget (A6), preloaded, and
-// present in the static HTML (so it shows with JS off).
-const ART_BUDGET_KB = { "hero/desktop.avif": 250, "hero/phone.avif": 160, "hero/desktop.webp": 400, "hero/phone.webp": 260 };
+// 11. The hero poster as files: both crops in both formats, inside the weight budget (A6), preloaded, and present in
+// the static HTML (so it shows with JS off). Rendered from the scene by scripts/poster.mjs, encoded by art/export.py.
+const ART_BUDGET_KB = { "hero/scene-wide.avif": 120, "hero/scene-tall.avif": 90, "hero/scene-wide.webp": 180, "hero/scene-tall.webp": 140 };
 function heroArtFiles() {
   const fails = [];
   for (const [file, kb] of Object.entries(ART_BUDGET_KB)) {
@@ -452,21 +512,27 @@ function heroArtFiles() {
     const img = root.match(/<img[^>]*id="hero-art"[^>]*>/)?.[0] ?? "";
     if (!img) fails.push(`${where}: no <img id="hero-art"> in the static markup`);
     else {
-      if (attr(img, "alt") !== "") fails.push(`${where}: the hero image must have alt="" (decorative)`);
-      if (!attr(img, "width") || !attr(img, "height")) fails.push(`${where}: the hero image has no width/height`);
+      if (attr(img, "alt") !== "") fails.push(`${where}: the hero poster must have alt="" (decorative)`);
+      if (!attr(img, "width") || !attr(img, "height")) fails.push(`${where}: the hero poster has no width/height`);
     }
     const preloads = [...html.matchAll(/<link rel="preload" as="image"[^>]*>/g)].map((m) => attr(m[0], "href"));
-    for (const file of ["hero/desktop.avif", "hero/phone.avif"])
+    for (const file of ["hero/scene-wide.avif", "hero/scene-tall.avif"])
       if (!preloads.includes(`${BASE}${file}`)) fails.push(`${where}: no preload for ${file}`);
+    // three.js is never in the first-paint bundle: only the scene's own chunk, loaded after paint, carries it.
+    const entry = html.match(/<script type="module"[^>]*src="([^"]+)"/)?.[1];
+    const js = entry && existsSync(join(DIST, entry.replace(BASE, ""))) ? read(join(DIST, entry.replace(BASE, ""))) : "";
+    if (!js) fails.push(`${where}: could not read the entry script`);
+    else if (/WebGLRenderer|THREE\.WebGLRenderer|webglcontextlost/.test(js)) fails.push(`${where}: three.js is in the entry bundle; it must load after first paint`);
   }
   return fails;
 }
 
-// 12. The hero image on screen, at every width in the states list, both languages and both themes: the right
-// crop loads, and the text sits on a background dark enough to read (the "headline safe area"). Measured
-// from a screenshot with the letters made invisible: the brightest tenth of the pixels behind each piece of text must
-// still give 4.5:1 against that text's colour.
+// 12. The poster on screen (reduced motion), at every width in the states list, both languages and both themes: the
+// right crop loads, and the HTML text and the header sit on a background dark enough to read. Measured from a
+// screenshot with the letters made invisible: the brightest tenth of the pixels behind each piece of text must still
+// give 4.5:1 against that text's colour.
 const SCREENS = [[360, 740], [390, 780], [768, 1024], [1280, 800], [1440, 900], [1920, 1080]];
+const HEADER_BOXES = [[".site-head .brand", ".site-head .brand"]];
 async function heroArtOnScreen() {
   const { page, url } = await browser();
   const fails = [];
@@ -476,27 +542,27 @@ async function heroArtOnScreen() {
     await open(page, url(lang), { width, height, reduce: true });
     await page.evaluate(`document.documentElement.setAttribute("data-theme", "${theme}")`);
     const loaded = await until(page, `$("#hero-art")?.complete && $("#hero-art").naturalWidth > 0`, 5000);
-    if (!loaded) { fails.push(`${where}: the hero image did not load`); continue; }
+    if (!loaded) { fails.push(`${where}: the poster did not load`); continue; }
     const info = JSON.parse(await probe(page, `return JSON.stringify({ src: $("#hero-art").currentSrc, vh: innerHeight, button: $("#hero .btn").getBoundingClientRect().bottom });`));
-    const want = width < height ? "phone" : "desktop";
-    if (!new RegExp(`/hero/${want}\\.(avif|webp)$`).test(info.src)) fails.push(`${where}: shows "${info.src}", want the ${want} crop`);
+    const want = width < height ? "tall" : "wide";
+    if (!new RegExp(`/hero/scene-${want}\\.(avif|webp)$`).test(info.src)) fails.push(`${where}: shows "${info.src}", want the ${want} poster`);
     if (info.button > info.vh) fails.push(`${where}: the button ends at ${Math.round(info.button)}px, below the first screen (${info.vh}px)`);
-
-    for (const f of await textContrast(page)) fails.push(`${where}: ${f}`);
+    const boxes = [["#hero h1", "#hero h1 .w"], ["#hero .slogan"], ["#hero .cue"], ...(theme === "dark" ? HEADER_BOXES : [])];
+    for (const f of await textContrast(page, boxes)) fails.push(`${where}: ${f}`);
   }
   return fails;
 }
 
-/** Contrast of the hero's text against what is behind it, measured from a screenshot with the letters (and their
- *  traces) made invisible: the brightest tenth of the pixels behind each piece of text must still give 4.5:1
- *  against that text's colour. Returns failure lines. */
-async function textContrast(page, measured = []) {
+/** Contrast of text against what is behind it, measured from a screenshot with the text (and the scene's own copy of
+ *  the headline) made invisible: the brightest tenth of the pixels behind each box must still give 4.5:1 against the
+ *  text's colour. boxes: [selector, selector whose colour is the ink (default the same)]. Returns failure lines. */
+async function textContrast(page, boxes, measured = []) {
   const info = JSON.parse(await probe(page, `
     const lum = (rgb) => { const [r, g, b] = rgb.match(/[\\d.]+/g).slice(0, 3).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
-    const box = (sel, inkSel = sel) => { const el = $(sel); const r = el.getBoundingClientRect(); return { sel, x: r.left, y: r.top, w: r.width, h: r.height, ink: lum(getComputedStyle($(inkSel)).color) }; };
-    return JSON.stringify({ boxes: [box("#hero h1", "#hero h1 .w"), box("#hero .slogan"), box("#hero .cue")] });`));
-  const hide = await page.evaluate(`(() => { const s = document.createElement("style"); s.id = "contrast-probe"; s.textContent = "#hero .traces { display: none !important; } " +
-    "#hero h1, #hero h1 *, #hero .slogan, #hero .cue { color: transparent !important; -webkit-text-fill-color: transparent !important; }"; document.head.append(s); return true; })()`);
+    const box = ([sel, inkSel = sel]) => { const el = $(sel); if (!el) return { sel, missing: true }; const r = el.getBoundingClientRect(); return { sel, x: r.left, y: r.top, w: r.width, h: r.height, ink: lum(getComputedStyle($(inkSel)).color) }; };
+    return JSON.stringify({ boxes: ${JSON.stringify(boxes)}.map(box) });`));
+  const sels = boxes.map((b) => `${b[0]}, ${b[0]} *`).join(", ");
+  const hide = await page.evaluate(`(() => { const s = document.createElement("style"); s.id = "contrast-probe"; s.textContent = ${JSON.stringify(`${sels} { color: transparent !important; -webkit-text-fill-color: transparent !important; } .site-head .brand svg { visibility: hidden !important; }`)}; document.head.append(s); return true; })()`);
   await page.wait(150);
   const shot = await page.screenshot();
   await page.evaluate(`document.getElementById("contrast-probe")?.remove()`);
@@ -506,6 +572,7 @@ async function textContrast(page, measured = []) {
     const cx = cv.getContext("2d"); cx.drawImage(img, 0, 0);
     const lin = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
     return JSON.stringify(${JSON.stringify(info.boxes)}.map((b) => {
+      if (b.missing) return null;
       const x = Math.max(0, Math.floor(b.x)), y = Math.max(0, Math.floor(b.y));
       const w = Math.max(1, Math.min(cv.width - x, Math.ceil(b.w))), h = Math.max(1, Math.min(cv.height - y, Math.ceil(b.h)));
       if (y >= cv.height || b.w < 1) return null;
@@ -518,70 +585,87 @@ async function textContrast(page, measured = []) {
   const fails = [];
   if (!hide) fails.push("could not hide the text for the measurement");
   info.boxes.forEach((b, i) => {
-    if (p90[i] === null) { fails.push(`${b.sel} is off screen or empty: nothing measured`); return; }
+    if (p90[i] === null) { fails.push(`${b.sel} is off screen, missing or empty: nothing measured`); return; }
     const ratio = (b.ink + 0.05) / (p90[i] + 0.05);
     measured.push(`${b.sel.replace("#hero ", "")} ${ratio.toFixed(2)}`);
-    if (ratio < 4.5) fails.push(`${b.sel} has ${ratio.toFixed(2)}:1 against the image behind it (need 4.5:1)`);
+    if (ratio < 4.5) fails.push(`${b.sel} has ${ratio.toFixed(2)}:1 against what is behind it (need 4.5:1)`);
   });
   return fails;
 }
 
-// 12b. Readability at rest with motion on (hero v3): at the end of the pinned story, with every word lit and the
-// image pushed in, the same contrast rule holds for the trace headline, subline and cue. 390x844 and 1440x900, EN/AR.
+// 12b. Readability at rest with the scene on: at the end of the pinned story the headline drawn on the board is
+// measured from a screenshot at points the scene itself reports as inside a letter and between letters (its own mask,
+// projected through its camera): the median letter against the brightest tenth of the gaps must give 3:1 (large text),
+// with at least 200 samples of each on screen, and every line's letters at least 16px tall. The subline and cue use
+// the rule above. 390x844 and 1440x900, EN/AR.
 async function restContrast() {
   const { page, url } = await browser();
   const fails = [];
   for (const lang of ["en", "ar"]) for (const [width, height] of PHONE_DESK) {
     const where = `${lang} ${width}x${height} at rest`;
-    await open(page, url(lang), { width, height });
-    const ready = await until(page, `$("#hero").classList.contains("traced") && !$("#hero").classList.contains("boot") && $("#hero-art").complete`, 6000);
-    if (!ready) { fails.push(`${where}: the scene never got ready`); continue; }
+    if (!(await openScene(page, url(lang), width, height))) { fails.push(`${where}: the 3D scene never came up`); continue; }
     await page.evaluate(`(() => { ${PROBE} toStory(1); })()`);
-    await page.wait(1000);
-    const lit = await probe(page, `return words().every((w) => vis(w) === 1)`);
-    if (!lit) { fails.push(`${where}: the words are not all lit, so rest was not reached`); continue; }
-    const measured = [];
-    for (const f of await textContrast(page, measured)) fails.push(`${where}: ${f}`);
+    await page.wait(3200); // past the gold pulse and the load moment
+    const pts = JSON.parse(await probe(page, `const s = $("#hero").__scene; if (!s || s.cam() !== 1) return "null"; return JSON.stringify(s.probe(1200))`));
+    if (!pts) { fails.push(`${where}: the board did not reach rest`); continue; }
+    const shot = await page.screenshot();
+    const m = JSON.parse(await page.evaluate(`(async () => {
+      const img = new Image(); img.src = ${JSON.stringify(shot)}; await img.decode();
+      const cv = document.createElement("canvas"); cv.width = img.width; cv.height = img.height;
+      const cx = cv.getContext("2d"); cx.drawImage(img, 0, 0); const d = cx.getImageData(0, 0, cv.width, cv.height).data;
+      const lin = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+      const L = ([x, y]) => { x = Math.round(x); y = Math.round(y); if (x < 0 || y < 0 || x >= cv.width || y >= cv.height) return null; const i = (y * cv.width + x) * 4; return 0.2126 * lin(d[i]) + 0.7152 * lin(d[i + 1]) + 0.0722 * lin(d[i + 2]); };
+      const pts = ${JSON.stringify(pts)};
+      const fg = pts.fg.map(L).filter((v) => v !== null).sort((a, b) => a - b), bg = pts.bg.map(L).filter((v) => v !== null).sort((a, b) => a - b);
+      return JSON.stringify({ nf: fg.length, nb: bg.length, fg: fg[Math.floor(fg.length / 2)], bg: bg[Math.floor(bg.length * 0.9)], cap: pts.cap });
+    })()`));
+    if (m.nf < 200 || m.nb < 200) { fails.push(`${where}: only ${m.nf} letter and ${m.nb} gap samples on screen (need 200 each): the headline is not in view`); continue; }
+    const ratio = (m.fg + 0.05) / (m.bg + 0.05), minCap = Math.min(...m.cap);
+    if (ratio < 3) fails.push(`${where}: the board headline has ${ratio.toFixed(2)}:1 (letters against gaps; need 3:1)`);
+    if (minCap < 16) fails.push(`${where}: a line of the board headline is ${minCap}px tall (need 16px)`);
+    const measured = [`board headline ${ratio.toFixed(2)} (letters ${minCap}-${Math.max(...m.cap)}px)`];
+    for (const f of await textContrast(page, [["#hero .slogan"], ["#hero .cue"]], measured)) fails.push(`${where}: ${f}`);
     console.log(`      (measured ${where}: ${measured.join(", ")})`);
   }
   return fails;
 }
 
-// 13. The scroll scene (hero v3): with motion on, the pinned scroll pushes the image in while the text stays put
-// (pinned); back at the top everything is at rest again. Also when the page is loaded already scrolled into the
-// story (reload, deep link): the image and the words match the position, not the rest state.
+// 13. The scroll scene: the camera's progress follows the pinned scroll while the text stays put; back at the top
+// everything is at rest again. Also when the page is loaded already scrolled into the story (reload, deep link): the
+// camera and the words match the position, not the first frame.
 async function heroScroll() {
   const { page, url } = await browser();
   const fails = [];
-  const state = `return JSON.stringify({ scale: new DOMMatrix(getComputedStyle($(".hero-art")).transform).a,
-    textTop: Math.round($("#hero .hero-in").getBoundingClientRect().top), lit: words().filter((w) => vis(w) === 1).length, y: scrollY, range: story().range })`;
+  const state = `const s = $("#hero").__scene; return JSON.stringify({ cam: s ? s.cam() : -1, on: $("#hero").classList.contains("scene-on"),
+    textTop: Math.round($("#hero .hero-in").getBoundingClientRect().top), lit: words().filter((w) => vis(w) === 1).length,
+    board: s ? s.words().filter((v) => v === 1).length : -1, y: scrollY, range: story().range })`;
   for (const lang of ["en", "ar"]) {
-    await open(page, url(lang), { width: 1440 });
-    await until(page, `!$("#hero").classList.contains("boot")`, 6000);
-    await page.wait(2600); // past the load settle
+    if (!(await openScene(page, url(lang), 1440, 900))) { fails.push(`${lang}: the 3D scene never came up`); continue; }
     const top = JSON.parse(await probe(page, state));
-    if (Math.abs(top.scale - 1) > 0.001) fails.push(`${lang}: at the top the image is already scaled (${top.scale})`);
+    if (top.cam !== 0) fails.push(`${lang}: at the top the camera is already at ${top.cam}`);
     if (top.range < 200) { fails.push(`${lang}: the pinned story is too short to test (${top.range}px)`); continue; }
     await page.evaluate(`(() => { ${PROBE} toStory(0.6); })()`);
     await page.wait(900);
     const down = JSON.parse(await probe(page, state));
-    if (!(down.scale > 1.01)) fails.push(`${lang}: after scrolling ${down.y}px the image is not pushed in (scale ${down.scale})`);
+    if (!(Math.abs(down.cam - 0.6 / 0.9) < 0.03)) fails.push(`${lang}: at 60% of the story the camera is at ${down.cam} of its flight, want ${(0.6 / 0.9).toFixed(3)}`);
     if (Math.abs(down.textTop - top.textTop) > 1) fails.push(`${lang}: the text moved from ${top.textTop}px to ${down.textTop}px while the hero is pinned`);
     await page.evaluate(`window.scrollTo({ top: 0, behavior: "instant" })`);
     await page.wait(900);
     const back = JSON.parse(await probe(page, state));
-    if (Math.abs(back.scale - 1) > 0.001 || back.lit !== 0) fails.push(`${lang}: back at the top the scene is not at rest (scale ${back.scale}, ${back.lit} words lit)`);
+    if (back.cam !== 0 || back.lit !== 0 || back.board !== 0) fails.push(`${lang}: back at the top the scene is not at its first frame (camera ${back.cam}, ${back.board} words lit)`);
 
     // Reload while scrolled into the story: the browser restores the position; the scene must match it.
     await page.evaluate(`(() => { ${PROBE} toStory(0.6); })()`);
     await page.wait(300);
     await page.send("Page.reload");
-    await page.wait(2500);
+    await until(page, `$("#hero").classList.contains("scene-on")`, 9000);
+    await page.wait(1200);
     const deep = JSON.parse(await probe(page, state));
     if (deep.y < 100) fails.push(`${lang}: the reload did not keep the scroll position (${deep.y}px), so the deep-load state was not tested`);
     else {
-      if (!(deep.scale > 1.01)) fails.push(`${lang}: loaded at ${deep.y}px, but the image is at rest (scale ${deep.scale})`);
-      if (!(deep.lit > 0)) fails.push(`${lang}: loaded at ${deep.y}px (60% of the story), but no word is lit`);
+      if (!deep.on) fails.push(`${lang}: loaded at ${deep.y}px, but the scene did not come up`);
+      if (!(deep.cam > 0.5)) fails.push(`${lang}: loaded at ${deep.y}px (60% of the story), but the camera is at ${deep.cam}`);
+      if (!(deep.board > 0)) fails.push(`${lang}: loaded at ${deep.y}px (60% of the story), but no word on the board is lit`);
     }
   }
   return fails;
@@ -828,17 +912,18 @@ const CHECKS = [
   ["A5: no founder name, email, key or internal URL", a5Grep],
   ["TypeScript (tsc --noEmit)", typescript],
   ["Tailwind: token colours only, no default palette, no raw colours in classes", tailwindTokens],
-  ["hero, reduced motion: final state, nothing moving, no pin/guide/stage (390/1440, EN/AR)", reducedMotion],
-  ["hero trace story: words dark before the pinned scroll, lit in order, all lit after (390/1440, EN/AR)", traceStory],
+  ["hero, reduced motion: poster + HTML headline, nothing moving, no scene/pin/guide/stage (390/1440, EN/AR)", reducedMotion],
+  ["hero 3D story: board dark and chip whole at 0%, words lit in order, all lit at rest (390/1440, EN/AR)", traceStory],
   ["hero scroll guide: shown at the top, hidden once scrolling starts (390/1440, EN/AR)", scrollGuide],
   ["header contract: data-stage intro inside the story, site after it", stageAttribute],
   ["hero button keeps its passing sheen", buttonSheen],
   ["hero: no horizontal scroll at 360/390/1440 EN/AR, and after a resize", noHorizontalScroll],
-  ["hero, JS off: headline, subhead and button readable; no guide, no data-stage", jsOff],
-  ["hero image: both crops, both formats, in budget, preloaded, in the static HTML", heroArtFiles],
-  ["hero image on screen: right crop, text readable over it (360-1920, EN/AR, dark/light)", heroArtOnScreen],
-  ["hero at rest, motion on: trace headline readable over the pushed-in image (390/1440, EN/AR)", restContrast],
-  ["hero scroll scene: push-in while pinned, at rest at the top, right after a scrolled reload", heroScroll],
+  ["hero, JS off: headline, subhead and button readable over the poster; no canvas, guide or data-stage", jsOff],
+  ["hero, no WebGL / weak device: poster + HTML headline, light word-by-word story, nothing logged", noScene],
+  ["hero poster: both crops, both formats, in budget, preloaded, in the static HTML; three.js not in the entry bundle", heroArtFiles],
+  ["hero poster on screen: right crop, text and header readable over it (360-1920, EN/AR, dark/light)", heroArtOnScreen],
+  ["hero at rest, scene on: board headline readable, measured from screenshots (390/1440, EN/AR)", restContrast],
+  ["hero scroll scene: camera follows the pinned scroll, first frame at the top, right after a scrolled reload", heroScroll],
   ["nav: strings and links match the prototype (EN/AR, bar and phone menu)", navParity],
   ["nav stages: intro = brand + AR|EN only, site/unset = full nav; Tab order, focus ring, RTL (390/1440)", navStates],
   ["nav: phone menu opens/closes by keyboard and touch, aria-expanded, Escape, closes on intro", phoneMenu],

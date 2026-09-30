@@ -1,7 +1,7 @@
 // Screenshots of the built hero for a human (or Alfred) to look at: `node scripts/shots.mjs [outDir]`.
 // Not a check: nothing here passes or fails.
 // Part 1, reduced motion: each shot is the scene's final state (the poster), per width, language and theme.
-// Part 2, motion on: the pinned trace story at 0, 33, 66 and 100% of its scroll, 1440x900 and 390x844, EN and AR.
+// Part 2, motion on: the pinned 3D story at 0, 25, 50, 75 and 100% of its scroll, 1440x900 and 390x844, EN and AR.
 // A screenshot is not motion: a person still has to watch it move.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -36,8 +36,11 @@ for (const [lang, width, height] of STORY) {
   await page.emulate({ width, height });
   await page.goto(url(lang));
   await page.evaluate(`document.fonts.ready.then(() => true)`);
-  await page.wait(2600); // past the image's settle
-  for (const p of [0, 33, 66, 100]) {
+  // Wait for the scene to fade in over the poster, then past the load moment (the chip powering up).
+  for (let i = 0; i < 60 && !(await page.evaluate(`document.getElementById("hero").classList.contains("scene-on")`)); i++) await page.wait(200);
+  await page.wait(3400);
+  console.log(lang, width, await page.evaluate(`JSON.stringify({ state: document.getElementById("hero").__sceneState, stats: (({ buildMs, towers, layout, dpr }) => ({ buildMs, towers, layout, dpr }))(document.getElementById("hero").__scene?.stats ?? {}) })`));
+  for (const p of [0, 25, 50, 75, 100]) {
     // The pinned range: the track's height minus the sticky hero's own.
     await page.evaluate(`(() => { const h = document.getElementById("hero"), sp = h.parentElement;
       const range = sp.offsetHeight - h.offsetHeight;

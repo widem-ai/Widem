@@ -18,8 +18,9 @@ dist/  plain static files ──(GitHub Action)──▶ GitHub Pages, https://w
 No server, no database, no forms, no analytics, no cookies. One outbound link: the booking page (Calendly).
 `prototype/` holds the approved v5 HTML prototype, kept as the reference for text and design parity (A14).
 It is never served from the React build.
-`art/` holds the art-directed image masters (PNG) and `art/export.py`, which writes the web files to
-`public/hero/` (AVIF + WebP, a wide crop and a tall crop). Only `public/` is served.
+`art/` holds the hero poster masters (PNG stills rendered from the hero's own three.js scene by
+`scripts/poster.mjs`) and `art/export.py`, which writes the web files to `public/hero/` (AVIF + WebP, a wide crop and
+a tall crop). Only `public/` is served.
 
 ## 2. Who's responsible for what?
 
@@ -34,7 +35,7 @@ It is never served from the React build.
 | Scroll scenes | one component per section under `src/sections/`, each owning its own GSAP context and cleanup |
 | Shared scroll utilities (the route line, docks) | `src/scroll/`: nothing else measures layout for scroll |
 | SEO tags, hreflang, JSON-LD | `src/seo/`, rendered into the HTML at pre-render (never injected after load) |
-| Imagery | masters in `art/`, web files made only by `art/export.py`; weight budgets live in the check (A6) |
+| Imagery | masters in `art/` (the hero poster is rendered from the scene: `scripts/poster.mjs`), web files made only by `art/export.py`; weight budgets live in the check (A6) |
 | Checks | `scripts/check.mjs`: one command, run by CI |
 
 ## 3. Why is it built this way? (don't "improve" these)
@@ -47,20 +48,24 @@ It is never served from the React build.
   `getBoundingClientRect` mid-animation put the route line 16–664 px off its docks on the prototype
   (2026-09-29). Measure layout positions (offset-based), and redraw on the page's own size changes, fonts,
   images and visibility changes.
-- **The hero is one image, and it is a night scene in both themes.** Mohannad chose concept C (the circuit
-  city) on 2026-09-30 as the imagery-led hero; it replaced the prototype's drawn circuit background. The
-  section carries the class `night` (tokens.css) so its text keeps the dark palette inside the light theme.
-  Portrait screens get the tall crop, so the headline always sits in the image's dark sky; the check
-  measures the contrast behind the text from a screenshot, so a new image or layout cannot quietly break it.
-- **The hero is a pinned scroll story (v3, Mohannad 2026-10-01).** The headline is etched into the image's dark sky as
-  circuit traces; while the visitor scrolls, each word powers on in reading order (light runs around each letter, then
-  it fills), the image is pushed in, and at the end the subline, button and cue appear and the page releases. The real
-  headline stays an HTML `<h1>` (one span per word); the traces are an aria-hidden SVG built in the browser from the
-  shaped words (canvas mask + marching squares, `src/sections/heroTraces.ts`), so Arabic joins correctly with no text
-  library. The pin is CSS (`position: sticky` in a track `--hero-pin` screens tall, only with JS and motion allowed):
-  the page has its full height at first paint, so a reload mid-story keeps its place. No three.js: the background is
-  the image. Reduced motion and JS off: everything lit at once, no pin, no guide. The rotating word and gold glint of
-  the first hero are gone (not part of v3).
+- **The hero is a three.js world (Mohannad, 2026-10-01: "remove the concept of this image ... keep the one that
+  looked like a 3D model").** Sketch v2 in production: a dark circuit board, a city of towers and a gold chip, with the
+  headline laid on the board as copper traces (the browser shapes the words on a canvas and marching squares turns
+  them into outlines, so Arabic joins with no text library). The hero is pinned (CSS `position: sticky` in a track
+  `--hero-pin` screens tall, only with JS and motion allowed, so the page has its full height at first paint and a
+  reload mid-story keeps its place). The scroll drives one GSAP timeline in `src/sections/Hero.tsx` that moves the
+  camera along its flight and powers each word in reading order (one source of truth for word timing: the scene draws
+  what the timeline says), then brings in the subline, button and cue. `src/sections/heroScene.ts` is the only
+  importer of three.js (approved 2026-09-30, bundled, about 129 KB gzipped in its own chunk) and is imported after
+  first paint. The concept-C photograph, its masters and the SVG trace headline of v3 are gone (in git history).
+- **Poster first.** A still of the scene at rest, without the headline on the board (`public/hero/scene-*`, rendered by
+  `scripts/poster.mjs`, mirrored for Arabic), is the first paint and the whole hero with reduced motion, JS off, no
+  WebGL 2 or a weak device (2 cores or fewer, 2 GB or less, Save-Data). There the headline is the HTML `<h1>` over the
+  poster; with JS and motion but no scene the words still fade on in reading order as the visitor scrolls. With the
+  scene running the `<h1>` stays in the page, visually hidden, for screen readers and search, because the board draws
+  the headline (the one place the headline is drawn in a canvas: Mohannad's chosen design). The section keeps the class
+  `night`. Re-render the poster whenever the scene changes; the check measures text contrast over it, and measures the
+  board headline's contrast at rest from screenshots at points the scene reports as letter and gap.
 - **The header contract: `<html data-stage>`.** `"intro"` while the visitor is inside the pinned hero story, `"site"`
   once it has ended and the page releases (and `"intro"` again on scrolling back into it). **Unset** when there is no
   pinned story (reduced motion, JS off): the header then shows the full site navigation. Only the hero writes it; the
@@ -118,7 +123,7 @@ Language switch: a link to the same section in the other page (A2), not a client
 | A string | both `content/*.ts` files, same key |
 | A token | `src/styles/tokens.css` |
 | A check | `scripts/check.mjs`, with a planted break proving it fails |
-| A dependency | only with a stated reason and Alfred's yes; record it here if it changes an answer above |
+| A dependency | only with a stated reason and Alfred's yes; record it here if it changes an answer above (three.js: the hero scene only) |
 
 ## 8. When do you stop and ask?
 
