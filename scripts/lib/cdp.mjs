@@ -91,6 +91,11 @@ export async function launch() {
       if (r.exceptionDetails) throw new Error(`evaluate failed: ${r.exceptionDetails.exception?.description ?? r.exceptionDetails.text}`);
       return r.result.value;
     },
+    /** A PNG of the current viewport, as a data URL. */
+    async screenshot() {
+      const r = await send("Page.captureScreenshot", { format: "png" });
+      return `data:image/png;base64,${r.data}`;
+    },
     wait: sleep,
     async close() {
       try { ws.close(); } catch { /* already closed */ }

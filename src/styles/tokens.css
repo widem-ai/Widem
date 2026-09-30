@@ -5,7 +5,9 @@
    :root[data-theme="light"], set by the theme switch. Readex Pro covers Latin + Arabic in one family.
    Contrast ratios below are WCAG 2.x, computed against --ground unless stated. */
 
-:root {
+/* `.night` re-declares the dark palette on an element, so a scene that is a night picture (the hero) stays
+   dark inside the light theme. */
+:root, .night {
   color-scheme: dark;
   --ground: #040B09;        /* electronic black, green-tinted */
   --ground-2: #07130F;      /* raised band */
@@ -20,7 +22,7 @@
   --signal: #E8B03A;        /* desert gold: ONLY the "you are free" moment */
   --focus: #7CC4FF;
 
-  /* canvas / SVG tokens, read by JS (circuit background, chip drawings) */
+  /* canvas / SVG tokens, read by JS (chip drawings in later sections) */
   --trace: rgba(24, 110, 84, 0.28);
   --trace-node: rgba(24, 110, 84, 0.5);
   --pulse: 47, 211, 158;    /* RGB triplet, no rgb(): JS builds rgba(var, a) */
@@ -46,7 +48,7 @@
   --sheen-cycle: 3.8s;      /* the light passing over the main button */
 
   /* Hero choreography (values from the v5 prototype). Read by src/sections/Hero.tsx through src/motion/env.ts. */
-  --hero-boot-delay: .38s;  /* circuit wave starts, then the headline powers on */
+  --hero-boot-delay: .38s;  /* the image starts to settle, then the headline powers on */
   --hero-power: 1.1s;       /* outline -> lit headline, glow peak, scan line crossing */
   --hero-rise: .6s;         /* subhead, button, cue rising in */
   --hero-word-start: 2.6s;  /* first word change, from boot */
@@ -56,7 +58,16 @@
   --hero-sweep: 3s;         /* gold glint crossing the word */
   --hero-sweep-rest: 3s;    /* green-only pause between glints */
   --hero-fallback: 4s;      /* CSS only: if the scene never starts, show the hero anyway */
+  /* The hero image (concept C). Unitless: read by the scene through number(). */
+  --hero-settle: 2.4s;        /* on load: the image eases back from slightly zoomed to rest */
+  --hero-settle-from: 1.06;   /* its starting scale */
+  --hero-push: 1.16;          /* on scroll: how far the image is pushed in by the time the hero has left */
+  --hero-lift: -14;           /* on scroll: the text block's travel, in % of its own height */
+  --hero-lift-fade: .25;      /* and its opacity by then */
+  --hero-min: max(100svh, min(56.25vw, 1080px)); /* tall enough on wide screens to keep the image's sky */
 }
+/* The page's own ground (follows the theme), for a .night scene's fade into the section below it. */
+:root { --ground-page: var(--ground); }
 
 /* Light: bare silicon wafer / light PCB. Pale cool grey-green ground, near-white panels,
    green-black ink, darker green traces. Same chip, lit from outside. */

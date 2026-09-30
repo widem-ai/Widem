@@ -16,6 +16,13 @@ export function seconds(name: string): number {
   return v.endsWith("ms") ? n / 1000 : n;
 }
 
+/** A unitless number token (a scale, a percentage), for GSAP. */
+export function number(name: string): number {
+  const n = parseFloat(token(name));
+  if (Number.isNaN(n)) throw new Error(`Widem: number token ${name} is missing from tokens.css`);
+  return n;
+}
+
 export const isRtl = (): boolean => document.documentElement.dir === "rtl";
 
 /** Runs `cb` whenever the theme switch changes data-theme on <html>. Returns a stop function. */

@@ -128,7 +128,7 @@ function links() {
   const files = walk(DIST).filter((f) => /\.(html|css)$/.test(f));
   for (const file of files) {
     const text = read(file), where = relative(ROOT, file).replace(/\\/g, "/");
-    const urls = [...text.matchAll(/\s(?:href|src)="([^"]*)"/gi), ...text.matchAll(/url\(\s*['"]?([^'")]+)['"]?\s*\)/gi)].map((m) => decode(m[1]));
+    const urls = [...text.matchAll(/\s(?:href|src|srcset)="([^"]*)"/gi), ...text.matchAll(/url\(\s*['"]?([^'")]+)['"]?\s*\)/gi)].map((m) => decode(m[1]));
     for (const url of urls) {
       if (url.startsWith("#") || url.startsWith("data:")) continue; // same-page anchors: checked per section in later slices
       let path;
@@ -236,13 +236,15 @@ async function reducedMotion() {
   const { en } = await load("content/en.ts");
   const { ar } = await load("content/ar.ts");
   const fails = [];
-  const snap = `const cv = $("#circuit"); return JSON.stringify({
+  const snap = `const art = $("#hero-art"); return JSON.stringify({
     parts: JSON.parse(${partsJson}),
     fx: [...document.querySelectorAll("#hero .hl-fx")].map(vis),
     word: $("#hero .rot")?.textContent ?? null,
     booting: $("#hero")?.classList.contains("boot") ?? null,
     moving: [...document.querySelectorAll("#hero *")].map((e) => getComputedStyle(e).transform + "|" + getComputedStyle(e).opacity).join(","),
-    canvas: cv ? cv.toDataURL() : null });`;
+    art: art ? art.complete && art.naturalWidth > 0 : null,
+    artMove: art ? getComputedStyle(art).transform + "|" + getComputedStyle(art.closest(".hero-art")).transform : null,
+    textOpacity: vis($("#hero .hero-in")) });`;
   for (const [lang, c] of [["en", en], ["ar", ar]]) for (const width of [390, 1440]) {
     const where = `${lang} ${width}px`;
     await open(page, url(lang), { width, reduce: true });
@@ -252,12 +254,17 @@ async function reducedMotion() {
     if (a.fx.some((o) => o !== 0)) fails.push(`${where}: power-on layers still showing (${a.fx})`);
     if (a.booting !== false) fails.push(`${where}: hero still in its boot state`);
     if (a.word !== c.hero.headlineWord) fails.push(`${where}: rotating word shows "${a.word}", want "${c.hero.headlineWord}"`);
-    if (a.canvas === null) fails.push(`${where}: no circuit canvas`);
+    if (a.art !== true) fails.push(`${where}: the hero image is missing or did not load`);
     await page.wait(2800);
     const b = JSON.parse(await probe(page, snap));
     if (b.word !== a.word) fails.push(`${where}: the word rotated ("${a.word}" -> "${b.word}")`);
     if (b.moving !== a.moving) fails.push(`${where}: hero elements changed transform/opacity over 2.8 s`);
-    if (b.canvas !== a.canvas) fails.push(`${where}: the circuit canvas kept animating`);
+    // Scrolling must not move anything either: no push-in, no lifting text.
+    await page.evaluate(`window.scrollTo(0, 260)`);
+    await page.wait(500);
+    const s = JSON.parse(await probe(page, snap));
+    if (s.artMove !== "none|none") fails.push(`${where}: the hero image moves on scroll with reduced motion (${s.artMove})`);
+    if (s.textOpacity !== 1) fails.push(`${where}: the hero text fades on scroll with reduced motion (opacity ${s.textOpacity})`);
   }
   return fails;
 }
@@ -289,16 +296,17 @@ async function noHorizontalScroll() {
       const m = JSON.parse(await probe(page, widthNow));
       if (m.doc > m.view) fails.push(`${lang} ${width}px: page is ${m.doc}px wide in a ${m.view}px viewport`);
     }
-    // Resize 1440 -> 390 without reloading: still no overflow, and the circuit is redrawn at the new size.
+    // Resize 1440 -> 390 without reloading: still no overflow, and the image switches to the tall crop.
     await open(page, url(lang), { width: 1440 });
     await page.wait(800);
     await page.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
     await page.wait(900);
-    const r = JSON.parse(await probe(page, `const cv = $("#circuit"); return JSON.stringify({ doc: document.documentElement.scrollWidth,
-      view: document.documentElement.clientWidth, cw: cv ? cv.width : -1, css: cv ? cv.clientWidth : -2 })`));
+    await until(page, `/phone\\./.test($("#hero-art")?.currentSrc ?? "") && $("#hero-art").complete`, 4000);
+    const r = JSON.parse(await probe(page, `const art = $("#hero-art"); return JSON.stringify({ doc: document.documentElement.scrollWidth,
+      view: document.documentElement.clientWidth, src: art ? art.currentSrc : null, ok: art ? art.complete && art.naturalWidth > 0 : false })`));
     if (r.doc > r.view) fails.push(`${lang} resized to 390px: page is ${r.doc}px wide`);
-    if (r.cw < 0) fails.push(`${lang} resized to 390px: no circuit canvas`);
-    else if (Math.abs(r.cw - r.css) > 1) fails.push(`${lang} resized to 390px: circuit canvas is ${r.cw}px for a ${r.css}px box (not redrawn)`);
+    if (!/phone\./.test(r.src ?? "")) fails.push(`${lang} resized to 390px: the image is still "${r.src}", want the tall crop`);
+    else if (!r.ok) fails.push(`${lang} resized to 390px: the tall crop did not load`);
   }
   return fails;
 }
@@ -323,7 +331,122 @@ async function jsOff() {
   return fails;
 }
 
-// 11. Zero console errors, uncaught exceptions or failed loads across every browser check above.
+
+// 11. The hero image as files: both crops in both formats, inside the weight budget (A6), preloaded, and
+// present in the static HTML (so it shows with JS off).
+const ART_BUDGET_KB = { "hero/desktop.avif": 250, "hero/phone.avif": 160, "hero/desktop.webp": 400, "hero/phone.webp": 260 };
+function heroArtFiles() {
+  const fails = [];
+  for (const [file, kb] of Object.entries(ART_BUDGET_KB)) {
+    const p = join(DIST, file);
+    if (!existsSync(p)) { fails.push(`dist/${file} is missing`); continue; }
+    const size = Math.ceil(statSync(p).size / 1024);
+    if (size > kb) fails.push(`dist/${file} is ${size} KB (budget ${kb} KB)`);
+  }
+  for (const lang of ["en", "ar"]) {
+    const html = distPage(lang) ?? "", where = `dist/${PAGES[lang].file}`;
+    const root = html.match(/<div id="root">([\s\S]*)<\/div>\s*<\/body>/)?.[1] ?? "";
+    for (const file of Object.keys(ART_BUDGET_KB))
+      if (!root.includes(`${BASE}${file}"`)) fails.push(`${where}: the static hero markup does not reference ${file}`);
+    const img = root.match(/<img[^>]*id="hero-art"[^>]*>/)?.[0] ?? "";
+    if (!img) fails.push(`${where}: no <img id="hero-art"> in the static markup`);
+    else {
+      if (attr(img, "alt") !== "") fails.push(`${where}: the hero image must have alt="" (decorative)`);
+      if (!attr(img, "width") || !attr(img, "height")) fails.push(`${where}: the hero image has no width/height`);
+    }
+    const preloads = [...html.matchAll(/<link rel="preload" as="image"[^>]*>/g)].map((m) => attr(m[0], "href"));
+    for (const file of ["hero/desktop.avif", "hero/phone.avif"])
+      if (!preloads.includes(`${BASE}${file}`)) fails.push(`${where}: no preload for ${file}`);
+  }
+  return fails;
+}
+
+// 12. The hero image on screen, at every width in the states list, both languages and both themes: the right
+// crop loads, and the text sits on a background dark enough to read (the "headline safe area"). Measured
+// from a screenshot with the letters made invisible: the brightest tenth of the pixels behind each piece of text must
+// still give 4.5:1 against that text's colour.
+const SCREENS = [[360, 740], [390, 780], [768, 1024], [1280, 800], [1440, 900], [1920, 1080]];
+async function heroArtOnScreen() {
+  const { page, url } = await browser();
+  const fails = [];
+  for (const lang of ["en", "ar"]) for (const [width, height] of SCREENS) for (const theme of ["dark", "light"]) {
+    if (theme === "light" && ![390, 1440].includes(width)) continue;
+    const where = `${lang} ${width}x${height} ${theme}`;
+    await open(page, url(lang), { width, height, reduce: true });
+    await page.evaluate(`document.documentElement.setAttribute("data-theme", "${theme}")`);
+    const loaded = await until(page, `$("#hero-art")?.complete && $("#hero-art").naturalWidth > 0`, 5000);
+    if (!loaded) { fails.push(`${where}: the hero image did not load`); continue; }
+    const info = JSON.parse(await probe(page, `
+      const lum = (rgb) => { const [r, g, b] = rgb.match(/[\\d.]+/g).slice(0, 3).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+      const box = (sel) => { const el = $(sel); const r = el.getBoundingClientRect(); return { sel, x: r.left, y: r.top, w: r.width, h: r.height, ink: lum(getComputedStyle(el).color) }; };
+      return JSON.stringify({ src: $("#hero-art").currentSrc, vh: innerHeight, boxes: [box("#hero h1"), box("#hero .slogan"), box("#hero .cue")], button: $("#hero .btn").getBoundingClientRect().bottom });`));
+    const want = width < height ? "phone" : "desktop";
+    if (!new RegExp(`/hero/${want}\\.(avif|webp)$`).test(info.src)) fails.push(`${where}: shows "${info.src}", want the ${want} crop`);
+    if (info.button > info.vh) fails.push(`${where}: the button ends at ${Math.round(info.button)}px, below the first screen (${info.vh}px)`);
+
+    await page.evaluate(`(() => { const s = document.createElement("style"); s.textContent = "#hero .hl-fx, #hero .glint { display: none !important; } #hero .rot { background: none !important; } " +
+      "#hero h1, #hero h1 *, #hero .slogan, #hero .cue { color: transparent !important; -webkit-text-fill-color: transparent !important; }"; document.head.append(s); })()`);
+    await page.wait(150);
+    const shot = await page.screenshot();
+    const p90 = JSON.parse(await page.evaluate(`(async () => {
+      const img = new Image(); img.src = ${JSON.stringify(shot)}; await img.decode();
+      const cv = document.createElement("canvas"); cv.width = img.width; cv.height = img.height;
+      const cx = cv.getContext("2d"); cx.drawImage(img, 0, 0);
+      const lin = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+      return JSON.stringify(${JSON.stringify(info.boxes)}.map((b) => {
+        const x = Math.max(0, Math.floor(b.x)), y = Math.max(0, Math.floor(b.y));
+        const w = Math.max(1, Math.min(cv.width - x, Math.ceil(b.w))), h = Math.max(1, Math.min(cv.height - y, Math.ceil(b.h)));
+        if (y >= cv.height) return 0;
+        const d = cx.getImageData(x, y, w, h).data, ls = [];
+        for (let i = 0; i < d.length; i += 4) ls.push(0.2126 * lin(d[i]) + 0.7152 * lin(d[i + 1]) + 0.0722 * lin(d[i + 2]));
+        ls.sort((a, b) => a - b);
+        return ls[Math.floor(ls.length * 0.9)];
+      }));
+    })()`));
+    info.boxes.forEach((b, i) => {
+      const ratio = (b.ink + 0.05) / (p90[i] + 0.05);
+      if (ratio < 4.5) fails.push(`${where}: ${b.sel} has ${ratio.toFixed(2)}:1 against the image behind it (need 4.5:1)`);
+    });
+  }
+  return fails;
+}
+
+// 13. The scroll scene: with motion on, scrolling pushes the image in and lifts the text; back at the top
+// everything is at rest again. Also when the page is loaded already scrolled (reload, deep link).
+async function heroScroll() {
+  const { page, url } = await browser();
+  const fails = [];
+  const state = `return JSON.stringify({ scale: new DOMMatrix(getComputedStyle($(".hero-art")).transform).a,
+    text: vis($("#hero .hero-in")), max: document.documentElement.scrollHeight - innerHeight, y: scrollY })`;
+  for (const lang of ["en", "ar"]) {
+    await open(page, url(lang), { width: 1440 });
+    await until(page, `!$("#hero").classList.contains("boot") && Object.values(heroParts).every((el) => vis(el) === 1)`, 7000);
+    const top = JSON.parse(await probe(page, state));
+    if (Math.abs(top.scale - 1) > 0.001) fails.push(`${lang}: at the top the image is already scaled (${top.scale})`);
+    if (top.max < 200) { fails.push(`${lang}: the page cannot scroll far enough to test the scene (${top.max}px)`); continue; }
+    await page.evaluate(`window.scrollTo({ top: ${top.max}, behavior: "instant" })`);
+    await page.wait(600);
+    const down = JSON.parse(await probe(page, state));
+    if (!(down.scale > 1.01)) fails.push(`${lang}: after scrolling ${down.y}px the image is not pushed in (scale ${down.scale})`);
+    if (!(down.text < 1)) fails.push(`${lang}: after scrolling ${down.y}px the text has not started to lift away (opacity ${down.text})`);
+    await page.evaluate(`window.scrollTo({ top: 0, behavior: "instant" })`);
+    await page.wait(600);
+    const back = JSON.parse(await probe(page, state));
+    if (Math.abs(back.scale - 1) > 0.001 || back.text !== 1) fails.push(`${lang}: back at the top the scene is not at rest (scale ${back.scale}, text ${back.text})`);
+
+    // Reload while scrolled: the browser restores the position; the scene must match it, not start from rest.
+    await page.evaluate(`window.scrollTo({ top: ${top.max}, behavior: "instant" })`);
+    await page.wait(200);
+    await page.send("Page.reload");
+    await page.wait(2500);
+    const deep = JSON.parse(await probe(page, state));
+    if (deep.y < 100) fails.push(`${lang}: the reload did not keep the scroll position (${deep.y}px), so the deep-load state was not tested`);
+    else if (!(deep.scale > 1.01)) fails.push(`${lang}: loaded at ${deep.y}px, but the image is at rest (scale ${deep.scale})`);
+  }
+  return fails;
+}
+
+// 14. Zero console errors, uncaught exceptions or failed loads across every browser check above.
 async function consoleClean() {
   const { page } = await browser();
   return page.errors.map((e) => e.slice(0, 300));
@@ -351,6 +474,9 @@ const CHECKS = [
   ["hero, motion on: power-on completes and the word rotates", motionOn],
   ["hero: no horizontal scroll at 360/390/1440 EN/AR, and after a resize", noHorizontalScroll],
   ["hero, JS off: headline, subhead and button readable", jsOff],
+  ["hero image: both crops, both formats, in budget, preloaded, in the static HTML", heroArtFiles],
+  ["hero image on screen: right crop, text readable over it (360-1920, EN/AR, dark/light)", heroArtOnScreen],
+  ["hero scroll scene: push-in and lift, at rest at the top, right after a scrolled reload", heroScroll],
   ["browser: zero console errors across the checks above", consoleClean],
 ];
 

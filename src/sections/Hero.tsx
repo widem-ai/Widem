@@ -1,16 +1,25 @@
 import { useGSAP } from "@gsap/react";
 import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useRef, useState } from "react";
 import type { Content } from "../../content/index.ts";
-import { isRtl, MOTION_OK, REDUCED, seconds } from "../motion/env.ts";
-import { createCircuit } from "./hero/circuit.ts";
+import { isRtl, MOTION_OK, number, REDUCED, seconds } from "../motion/env.ts";
+import { assetPath } from "../site.ts";
 
-gsap.registerPlugin(useGSAP);
+gsap.registerPlugin(useGSAP, ScrollTrigger);
 
-// The hero scene, ported from the v5 prototype: circuit background with a power-on wave, the headline
-// lighting up from an unlit outline (scan line + halo), subhead/button/cue rising in, then the rotating
-// word with its gold glint. One GSAP context (useGSAP + matchMedia) owns all of it and its cleanup.
-// Reduced motion: final state at once, circuit drawn still, word fixed. JS off: the static markup below.
+// The hero scene: one art-directed image (the circuit city at night, concept C) anchored to the bottom of
+// the hero, with the headline in the dark sky above it. On load the image settles back a little while the
+// headline lights up from an unlit outline (scan line + halo), the subhead/button/cue rise in, then the
+// word rotates with its gold glint. On scroll the image is pushed in slowly and the text lifts away.
+// One GSAP context (useGSAP + matchMedia) owns all of it and its cleanup.
+// Reduced motion: final state at once, image still, word fixed. JS off: the static markup below.
+// The image is decorative (alt=""): it carries no information the text does not.
+// The tall crop (9:16) replaces the wide one on portrait screens. The same query is used by the preload
+// links in the page head (src/shell/document.ts). Sizes are the exported files' (art/export.py).
+export const PHONE = "(orientation: portrait)";
+export const ART = { desktop: { w: 1680, h: 945 }, phone: { w: 900, h: 1600 } } as const;
+
 export function Hero({ c }: { c: Content["hero"] }) {
   const scope = useRef<HTMLElement>(null);
   const rotated = useRef(false);
@@ -24,18 +33,23 @@ export function Hero({ c }: { c: Content["hero"] }) {
       const hero = scope.current;
       if (!hero) return;
       const q = gsap.utils.selector(hero);
-      const canvas = q(".circuit")[0] as HTMLCanvasElement;
 
       const mm = gsap.matchMedia(hero);
       mm.add({ motion: MOTION_OK, reduce: REDUCED }, (ctx) => {
         const motion = Boolean(ctx.conditions?.motion);
-        const circuit = createCircuit(canvas, motion);
 
         if (!motion) {
           hero.classList.remove("boot");
           setWordIndex(0);
-          return () => circuit.destroy();
+          return;
         }
+
+        // Scroll: the image is pushed in and the text lifts away, tied to the hero leaving the screen.
+        // Two elements so the two motions never fight: the wrapper takes the scroll, the image the settle.
+        gsap.timeline({ scrollTrigger: { trigger: hero, start: "top top", end: "bottom top", scrub: true } })
+          .to(q(".hero-art"), { scale: number("--hero-push"), ease: "none" }, 0)
+          .to(q(".hero-in"), { yPercent: number("--hero-lift"), opacity: number("--hero-lift-fade"), ease: "none" }, 0)
+          .to(q(".cue-wrap"), { opacity: 0, ease: "none", duration: 0.25 }, 0);
 
         let alive = true;
         const start = ctx.add("start", () => {
@@ -61,7 +75,7 @@ export function Hero({ c }: { c: Content["hero"] }) {
             gsap.set(rising, { opacity: 0, y: 10 });
           }
           hero.classList.remove("boot");
-          circuit.startWave();
+          if (!late) gsap.from(q(".hero-art img"), { scale: number("--hero-settle-from"), duration: seconds("--hero-settle"), ease: "power2.out" });
 
           if (!late) {
             const lit = T.power * 0.55; // the prototype's glow peak: 55% through the power-on
@@ -97,7 +111,6 @@ export function Hero({ c }: { c: Content["hero"] }) {
         (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => { if (alive) start(); });
         return () => {
           alive = false;
-          circuit.destroy();
           setWordIndex(0);
         };
       });
@@ -116,8 +129,15 @@ export function Hero({ c }: { c: Content["hero"] }) {
   );
 
   return (
-    <section className="hero boot" id="hero" aria-labelledby="h" ref={scope}>
-      <canvas className="circuit" id="circuit" aria-hidden="true" />
+    <section className="hero night boot" id="hero" aria-labelledby="h" ref={scope}>
+      <div className="hero-art" aria-hidden="true">
+        <picture>
+          <source media={PHONE} type="image/avif" srcSet={assetPath("hero/phone.avif")} width={ART.phone.w} height={ART.phone.h} />
+          <source media={PHONE} type="image/webp" srcSet={assetPath("hero/phone.webp")} width={ART.phone.w} height={ART.phone.h} />
+          <source type="image/avif" srcSet={assetPath("hero/desktop.avif")} width={ART.desktop.w} height={ART.desktop.h} />
+          <img id="hero-art" src={assetPath("hero/desktop.webp")} width={ART.desktop.w} height={ART.desktop.h} alt="" decoding="async" fetchPriority="high" />
+        </picture>
+      </div>
       <div className="hero-in">
         <div className="hl">
           <h1 id="h" className="hl-text">
@@ -147,10 +167,12 @@ export function Hero({ c }: { c: Content["hero"] }) {
         <a className="btn" href="#book">
           {c.cta}
         </a>
+      </div>
+      <p className="cue-wrap">
         <a className="cue" href="#story">
           {c.cue}
         </a>
-      </div>
+      </p>
     </section>
   );
 }

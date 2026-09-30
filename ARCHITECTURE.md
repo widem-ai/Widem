@@ -18,6 +18,8 @@ dist/  plain static files ──(GitHub Action)──▶ GitHub Pages, https://w
 No server, no database, no forms, no analytics, no cookies. One outbound link: the booking page (Calendly).
 `prototype/` holds the approved v5 HTML prototype, kept as the reference for text and design parity (A14).
 It is never served from the React build.
+`art/` holds the art-directed image masters (PNG) and `art/export.py`, which writes the web files to
+`public/hero/` (AVIF + WebP, a wide crop and a tall crop). Only `public/` is served.
 
 ## 2. Who's responsible for what?
 
@@ -30,6 +32,7 @@ It is never served from the React build.
 | Scroll scenes | one component per section under `src/sections/`, each owning its own GSAP context and cleanup |
 | Shared scroll utilities (the route line, docks) | `src/scroll/`: nothing else measures layout for scroll |
 | SEO tags, hreflang, JSON-LD | `src/seo/`, rendered into the HTML at pre-render (never injected after load) |
+| Imagery | masters in `art/`, web files made only by `art/export.py`; weight budgets live in the check (A6) |
 | Checks | `scripts/check.mjs`: one command, run by CI |
 
 ## 3. Why is it built this way? (don't "improve" these)
@@ -42,6 +45,11 @@ It is never served from the React build.
   `getBoundingClientRect` mid-animation put the route line 16–664 px off its docks on the prototype
   (2026-09-29). Measure layout positions (offset-based), and redraw on the page's own size changes, fonts,
   images and visibility changes.
+- **The hero is one image, and it is a night scene in both themes.** Mohannad chose concept C (the circuit
+  city) on 2026-09-30 as the imagery-led hero; it replaced the prototype's drawn circuit background. The
+  section carries the class `night` (tokens.css) so its text keeps the dark palette inside the light theme.
+  Portrait screens get the tall crop, so the headline always sits in the image's dark sky; the check
+  measures the contrast behind the text from a screenshot, so a new image or layout cannot quietly break it.
 - **GitHub Pages, base path `/Widem/`.** Free, public repo (Spec D3/D5). Every asset URL goes through the
   base path; a hard-coded `/` breaks the live site.
 - **Clients named by business, never by founder.** The client agreed to be named (2026-09-30, recorded in the vault):
@@ -81,6 +89,8 @@ Language switch: a link to the same section in the other page (A2), not a client
 | A scroll effect | inside its section component, using `src/scroll/` for any measurement |
 | A helper scenes share (timing/colour tokens, direction, theme changes) | `src/motion/`: reads tokens, never defines values |
 | A browser check | `scripts/check.mjs`, driving Chrome through `scripts/lib/cdp.mjs` (no Playwright dependency) |
+| An image | master in `art/`, a job in `art/export.py`, a budget line in the check; never a hand-made file in `public/` |
+| Screenshots to look at | `node scripts/shots.mjs <dir>` (not a check) |
 | A string | both `content/*.ts` files, same key |
 | A token | `src/styles/tokens.css` |
 | A check | `scripts/check.mjs`, with a planted break proving it fails |
