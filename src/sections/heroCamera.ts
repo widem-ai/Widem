@@ -42,10 +42,10 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v
 const SHOT = {
   desktop: {
     zoom: [[0, 2.1], [0.2, 2.3], [0.45, 1.8], [0.8, 1]] as Key,
-    tilt: [[0, 72], [0.25, 64], [0.5, 50], [0.8, 0]] as Key, // the text plane: 90 = flat on the board, 0 = upright
+    tilt: [[0, 72], [0.25, 64], [0.5, 54], [0.68, 34], [0.8, 0]] as Key, // the text plane: 90 = flat on the board, 0 = upright
     turn: [[0, -58], [0.25, -48], [0.5, -30], [0.8, 0]] as Key, // yaw on the board (reading direction away from the chip)
-    size: [[0, 1.15], [0.5, 1.15], [0.8, 1]] as Key,
-    lift: [[0, 0], [0.5, 0], [0.8, 1]] as Key, // 0 = lying beside the chip, 1 = standing at its rest place
+    size: [[0, 1.15], [0.22, 1.6], [0.55, 1.6], [0.8, 1]] as Key, // the letters loom as the view closes in (vector: stays sharp)
+    lift: [[0, 0], [0.55, 0], [0.8, 1]] as Key, // 0 = lying beside the chip, 1 = standing at its rest place
     start: [0.26, 0.82], // where the chip sits on screen at 0%
     follow: [0.5, 0.55], // where the powering word is held while the view glides
     lie: [0.12, -0.01], // where line 1 starts on the board, from the chip (fractions of the drawn photo)

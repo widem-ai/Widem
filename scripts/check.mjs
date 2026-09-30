@@ -558,6 +558,8 @@ async function heroScroll() {
   const state = `const m = new DOMMatrix(getComputedStyle($("#hero .hl")).transform);
     return JSON.stringify({ scale: new DOMMatrix(getComputedStyle($(".hero-art")).transform).a,
     upright: Math.abs(m.m13) + Math.abs(m.m23) + Math.abs(m.m31) + Math.abs(m.m32) + Math.abs(m.m34) < 1e-3 && Math.abs(m.b) + Math.abs(m.c) < 1e-3,
+    gold: [...document.querySelectorAll("#hero .tw")].filter((g) => { const v = parseFloat(getComputedStyle(g).getPropertyValue("--g")); return v > 0.02 && v < 0.98; }).length,
+    etch: parseFloat(getComputedStyle($("#hero .tw .i")).fillOpacity), glow: Number(getComputedStyle($("#hero .chip-glow")).opacity),
     textTop: Math.round($("#hero .hero-in").getBoundingClientRect().top), lit: words().filter((w) => vis(w) === 1).length, y: scrollY, range: story().range })`;
   for (const lang of ["en", "ar"]) {
     await open(page, url(lang), { width: 1440 });
@@ -566,17 +568,24 @@ async function heroScroll() {
     const top = JSON.parse(await probe(page, state));
     if (!(top.scale > 1.3)) fails.push(`${lang}: at the top the view is not close beside the chip (photo scale ${top.scale}, want > 1.3)`);
     if (top.upright) fails.push(`${lang}: at the top the headline is not lying on the board (its transform is flat)`);
+    if (!(top.etch > 0.5)) fails.push(`${lang}: at the top the unlit letters are not dark shapes on the board (fill-opacity ${top.etch})`);
     if (top.range < 200) { fails.push(`${lang}: the pinned story is too short to test (${top.range}px)`); continue; }
     await page.evaluate(`(() => { ${PROBE} toStory(0.6); })()`);
     await page.wait(900);
     const down = JSON.parse(await probe(page, state));
     if (!(down.scale > 1.01 && down.scale < top.scale - 0.05)) fails.push(`${lang}: at 60% the view has not pulled back part way (scale ${down.scale}, top ${top.scale})`);
     if (Math.abs(down.textTop - top.textTop) > 1) fails.push(`${lang}: the text moved from ${top.textTop}px to ${down.textTop}px while the hero is pinned`);
+    // The "you are free" moment: gold from the chip running through the words, the chip at full glow.
+    await page.evaluate(`(() => { ${PROBE} toStory(0.855); })()`);
+    await page.wait(900);
+    const gold = JSON.parse(await probe(page, state));
+    if (!(gold.gold > 0) || !(gold.glow > 0.8)) fails.push(`${lang}: near the end no gold pulse runs from the chip (${gold.gold} words pulsing, chip glow ${gold.glow})`);
     await page.evaluate(`(() => { ${PROBE} toStory(1); })()`);
     await page.wait(900);
     const end = JSON.parse(await probe(page, state));
     if (Math.abs(end.scale - 1) > 0.001) fails.push(`${lang}: at rest the whole picture is not shown (photo scale ${end.scale})`);
     if (!end.upright) fails.push(`${lang}: at rest the headline is not standing upright at its place`);
+    if (end.gold !== 0) fails.push(`${lang}: at rest the gold pulse is still running (${end.gold} words)`);
     await page.evaluate(`window.scrollTo({ top: 0, behavior: "instant" })`);
     await page.wait(900);
     const back = JSON.parse(await probe(page, state));
@@ -848,7 +857,7 @@ const CHECKS = [
   ["hero image: both crops, both formats, in budget, preloaded, in the static HTML", heroArtFiles],
   ["hero image on screen: right crop, text readable over it (360-1920, EN/AR, dark/light)", heroArtOnScreen],
   ["hero at rest, motion on: trace headline readable over the image (390/1440, EN/AR)", restContrast],
-  ["hero flight: close by the chip at the top, pulls back while pinned, whole picture + upright text at rest, right after a scrolled reload", heroScroll],
+  ["hero flight: close by the chip at the top, pulls back while pinned, gold pulse near the end, whole picture + upright text at rest, right after a scrolled reload", heroScroll],
   ["nav: strings and links match the prototype (EN/AR, bar and phone menu)", navParity],
   ["nav stages: intro = brand + AR|EN only, site/unset = full nav; Tab order, focus ring, RTL (390/1440)", navStates],
   ["nav: phone menu opens/closes by keyboard and touch, aria-expanded, Escape, closes on intro", phoneMenu],
