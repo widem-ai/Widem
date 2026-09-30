@@ -366,7 +366,7 @@ export async function createHeroScene(o: HeroSceneOpts): Promise<HeroScene | nul
     const W = Lx.maxW * K, H = Lx.lines.length * Lx.LH * K, z0 = lineZ(0, Lx), zMid = zTop + H / 2, zBot = zTop + H;
     const nb = Lx === LN && LN !== LW, X = (r: number) => S * (r + startOf(Lx) - X0);
     return {
-      pos: [nb ? V(X(0.9 - NARROW_SHIFT), 15, z0 + 15) : V(X(X0 - 8.6), 5.6, z0 + 11.8), V(X(X0 + 0.3 * W), 2.8, z0 + 4.8), V(X(X0 + 0.72 * W), 7.5, z0 + 8.5), nb ? V(X(X0 + 0.5 * W), 17, zBot + 13) : V(X(X0 + 0.45 * W), 12.5, zBot + 10.5)],
+      pos: [nb ? V(X(0.9 - NARROW_SHIFT), 15, z0 + 15) : V(X(X0 - 8.6), 5.6, z0 + 11.8), V(X(X0 + 0.3 * W), 2.8, z0 + 4.8), V(X(X0 + 0.72 * W), 7.5, z0 + 8.5), nb ? V(X(X0 + 0.5 * W), 22, zBot + 16) : V(X(X0 + 0.45 * W), 12.5, zBot + 10.5)],
       tgt: [nb ? V(X(2.0 - NARROW_SHIFT), 0, z0 + 0.6) : V(X(X0 + 4.2), 0, z0 - 0.6), V(X(X0 + 0.64 * W), 0, z0 + 0.2), V(X(X0 + 0.62 * W), 0, zMid), V(X(X0 + 0.45 * W), 0, zMid)],
       W, H,
     };
