@@ -74,7 +74,10 @@ function breakLines(width: (s: string) => number, words: string[], n: number): s
   return out;
 }
 
-export function createHeroScene(o: HeroSceneOpts): HeroScene | null {
+/** Give the main thread back between build phases, so a slow phone never meets one long task (input stays live). */
+const breathe = () => new Promise<void>((r) => setTimeout(r, 0));
+
+export async function createHeroScene(o: HeroSceneOpts): Promise<HeroScene | null> {
   const { canvas, rtl: AR } = o;
   const S = AR ? -1 : 1; // reading direction on the board: +x for English, -x for Arabic
   const FONT = `600 ${F}px ${o.family}`;
@@ -274,6 +277,7 @@ export function createHeroScene(o: HeroSceneOpts): HeroScene | null {
   function bundle(center: Pt[], n: number, spacing: number, d0: number, hero: number, width: number, gain: number) {
     for (let i = 0; i < n; i++) ribbon(offsetLine(center, (i - (n - 1) / 2) * spacing), d0, rnd(), hero, width, gain * range(0.75, 1.1));
   }
+  await breathe();
   const DIRS: Pt[] = [[0, 1], [0, -1], [1, 0], [-1, 0]];
   DIRS.forEach((d) => {
     if (d[0] === S) return; // the reading side feeds the headline instead
@@ -301,6 +305,7 @@ export function createHeroScene(o: HeroSceneOpts): HeroScene | null {
     const p = [range(-50, 50), range(-60, 28)].map((v) => v * (rnd() < 0.5 ? 0.5 : 1)) as Pt; if (inText(p[0], p[1], 0.5)) continue;
     bundle(walk([p], DIRS[Math.floor(rnd() * 4)], range(2, 7)), 1 + Math.floor(rnd() * 3), 0.12, Math.hypot(p[0], p[1]), 0, 0.14, range(0.25, 0.55));
   }
+  await breathe();
   const traceGeo = new BufferGeometry();
   traceGeo.setAttribute("position", new Float32BufferAttribute(pos, 3));
   traceGeo.setAttribute("aDist", new Float32BufferAttribute(dist, 1));
@@ -411,6 +416,7 @@ export function createHeroScene(o: HeroSceneOpts): HeroScene | null {
   type Tower = { x: number; z: number; w: number; h: number; d: number; kind: number; dc: number; dt: number; rank?: number };
   const towers: Tower[] = [];
   for (let n = 0; n < 50000 && towers.length < 3400; n++) {
+    if (n % 6000 === 5999) await breathe();
     const cl = rnd() < 0.5, x = cl ? range(-22, 22) + S * 10 : range(-55, 55), z = cl ? range(-18, 16) : range(-75, 30);
     if (inText(x, z, 0.4)) continue;
     const dcx = Math.hypot(x - S * (X0 + readW / 2), z);
@@ -475,6 +481,7 @@ export function createHeroScene(o: HeroSceneOpts): HeroScene | null {
   towerMesh(new BoxGeometry(1, 1, 1).translate(0, 0.5, 0), towers.filter((t) => !t.kind));
   towerMesh(new CylinderGeometry(0.5, 0.5, 1, 18).translate(0, 0.5, 0), towers.filter((t) => t.kind));
 
+  await breathe();
   // ---------- the gold chip ----------
   const chipMat = new ShaderMaterial({
     uniforms: shared,
@@ -699,6 +706,8 @@ export function createHeroScene(o: HeroSceneOpts): HeroScene | null {
   }
 
   if (o.poster) { shared.uPower.value = 1; shared.uWave.value = WAVE_END; shared.uTime.value = 7.3; }
+  await breathe();
+  if (dead) return null;
   resize();
   stats.buildMs = +(performance.now() - t0).toFixed(1);
   if (o.poster) { apply(); renderer.render(scene, camera); canvas.classList.add("on"); }

@@ -62,7 +62,9 @@ export function Hero({ c }: { c: Content["hero"] }) {
         let mod: typeof import("./heroScene.ts");
         try { mod = await import("./heroScene.ts"); } catch { hero.__sceneState = "failed-load"; return; }
         if (!alive) return;
-        scene = mod.createHeroScene({ canvas, words, rtl: isRtl(), family, poster: posterShot });
+        const made = await mod.createHeroScene({ canvas, words, rtl: isRtl(), family, poster: posterShot });
+        if (!alive) { made?.destroy(); return; }
+        scene = made;
         hero.__scene = scene;
         if (!scene) { hero.__sceneState = "no-webgl"; return; }
         hero.__sceneState = "running";
