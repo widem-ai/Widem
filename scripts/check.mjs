@@ -446,7 +446,31 @@ async function heroScroll() {
   return fails;
 }
 
-// 14. Zero console errors, uncaught exceptions or failed loads across every browser check above.
+// 14. Tailwind reads only Widem's tokens: the built CSS maps its colours to tokens.css variables and carries none
+// of Tailwind's default palette; no component writes a raw colour in a class (bg-[#...], text-[rgb(...)]...).
+function tailwindTokens() {
+  const fails = [];
+  const assets = existsSync(join(DIST, "assets")) ? readdirSync(join(DIST, "assets")).filter((f) => f.endsWith(".css")) : [];
+  if (!assets.length) return ["no CSS in dist/assets (run npm run build first)"];
+  const css = assets.map((f) => read(join(DIST, "assets", f))).join("\n");
+  // The mapping lives in src/styles/tailwind.css (theme "inline": values are written into each utility, so the
+  // built CSS only carries the ones in use). Check the source for the reset and the token mapping.
+  const tw = existsSync(join(ROOT, "src/styles/tailwind.css")) ? read(join(ROOT, "src/styles/tailwind.css")) : "";
+  if (!/--color-\*:\s*initial/.test(tw)) fails.push("src/styles/tailwind.css: Tailwind's default palette is not switched off (--color-*: initial)");
+  if (!/--color-ground:\s*var\(--ground\)/.test(tw)) fails.push("src/styles/tailwind.css: --color-ground is not mapped to var(--ground)");
+  if (!/@layer\s+theme/.test(css) || !/@layer\s+base/.test(css)) fails.push("built CSS: no Tailwind layers (theme, base): is the Vite plugin wired?");
+  const stray = css.match(/--color-(?:red|blue|gray|slate|zinc|neutral|stone|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3}\s*:/);
+  if (stray) fails.push(`built CSS: Tailwind's default palette is present (${stray[0].trim()})`);
+  const raw = /\b(?:bg|text|border|fill|stroke|from|to|via|ring|outline|shadow|decoration|accent|caret)-\[(?:#|rgb|hsl|oklch|color)/;
+  for (const file of walk(join(ROOT, "src")).filter((f) => /\.(tsx|ts)$/.test(f))) {
+    read(file).split("\n").forEach((line, i) => {
+      if (raw.test(line)) fails.push(`${relative(ROOT, file).replace(/\\/g, "/")}:${i + 1}: raw colour in a Tailwind class; use a token colour`);
+    });
+  }
+  return fails;
+}
+
+// 15. Zero console errors, uncaught exceptions or failed loads across every browser check above.
 async function consoleClean() {
   const { page } = await browser();
   return page.errors.map((e) => e.slice(0, 300));
@@ -470,6 +494,7 @@ const CHECKS = [
   ["every URL resolves under /Widem/", links],
   ["A5: no founder name, email, key or internal URL", a5Grep],
   ["TypeScript (tsc --noEmit)", typescript],
+  ["Tailwind: token colours only, no default palette, no raw colours in classes", tailwindTokens],
   ["hero, reduced motion: final state, nothing moving (390/1440, EN/AR)", reducedMotion],
   ["hero, motion on: power-on completes and the word rotates", motionOn],
   ["hero: no horizontal scroll at 360/390/1440 EN/AR, and after a resize", noHorizontalScroll],

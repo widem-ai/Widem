@@ -3,6 +3,7 @@ import { StrictMode } from "react";
 import { hydrateRoot } from "react-dom/client";
 import { App } from "./App.tsx";
 import "./styles/tokens.css";
+import "./styles/tailwind.css";
 import "./styles/site.css";
 
 const root = document.getElementById("root");

@@ -27,6 +27,7 @@ It is never served from the React build.
 |---|---|
 | Every visible word, both languages | `content/en.ts`, `content/ar.ts` (same keys; a key missing in one fails the check) |
 | Colours, type, spacing, motion timings | `src/styles/tokens.css` (design tokens as CSS variables; components read roles, never raw values) |
+| Tailwind's theme | `src/styles/tailwind.css`: maps Tailwind colour/font names onto the tokens; its default palette is switched off |
 | Language and direction (`lang`, `dir`) | the page shell, set at pre-render; components never set `dir` themselves |
 | Theme (dark/light) | one `data-theme` attribute on `<html>`; stored per visitor |
 | Scroll scenes | one component per section under `src/sections/`, each owning its own GSAP context and cleanup |
@@ -50,6 +51,13 @@ It is never served from the React build.
   section carries the class `night` (tokens.css) so its text keeps the dark palette inside the light theme.
   Portrait screens get the tall crop, so the headline always sits in the image's dark sky; the check
   measures the contrast behind the text from a screenshot, so a new image or layout cannot quietly break it.
+- **Tailwind CSS v4, reading our tokens (added 2026-09-30, Mohannad's decision).** Reason: the component libraries
+  worth borrowing from (SmoothUI, Unlumen UI, Skiper UI) are written in Tailwind; with it their pieces port with
+  little rewriting. Tailwind never owns a value: `tailwind.css` points every colour at a `tokens.css` variable and
+  switches the default palette off, so `bg-ground` follows the theme and the `night` scope like everything else.
+  Existing components keep their own CSS; new ones may use either. Its reset (preflight) sits in a CSS layer, so our
+  unlayered styles win (checked: footer and hero pixel-identical before and after, EN and AR). Motion (framer-motion)
+  is not added: GSAP stays the one animation engine unless a borrowed component truly needs Motion.
 - **GitHub Pages, base path `/Widem/`.** Free, public repo (Spec D3/D5). Every asset URL goes through the
   base path; a hard-coded `/` breaks the live site.
 - **Clients named by business, never by founder.** The client agreed to be named (2026-09-30, recorded in the vault):

@@ -1,0 +1,30 @@
+/* Tailwind CSS v4 (added 2026-09-30, Mohannad's decision; see ARCHITECTURE §3).
+   Why: component libraries worth borrowing from (SmoothUI, Unlumen UI, Skiper UI) are written in Tailwind.
+   Rule: Tailwind reads OUR tokens. Its default colour palette is switched off, so a utility can only paint in
+   a Widem colour (bg-ground, text-ink, text-action-bright...), and every value follows the theme and the
+   .night scope because each one points at a tokens.css variable. Preflight lives in Tailwind's base layer;
+   our own unlayered styles (tokens.css, site.css) win wherever both set the same property. */
+@import "tailwindcss";
+
+@theme inline {
+  --color-*: initial;
+  --color-ground: var(--ground);
+  --color-ground-2: var(--ground-2);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-line: var(--line);
+  --color-action: var(--action);
+  --color-action-ink: var(--action-ink);
+  --color-action-bright: var(--action-bright);
+  --color-signal: var(--signal);
+  --color-focus: var(--focus);
+  --color-warn: var(--warn);
+  --color-die: var(--die);
+  --color-die-line: var(--die-line);
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  --font-sans: var(--font);
+  --radius-widem: var(--radius);
+}
