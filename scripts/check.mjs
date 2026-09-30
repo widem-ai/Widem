@@ -490,7 +490,7 @@ async function heroArtOnScreen() {
 /** Contrast of the hero's text against what is behind it, measured from a screenshot with the letters (and their
  *  traces) made invisible: the brightest tenth of the pixels behind each piece of text must still give 4.5:1
  *  against that text's colour. Returns failure lines. */
-async function textContrast(page) {
+async function textContrast(page, measured = []) {
   const info = JSON.parse(await probe(page, `
     const lum = (rgb) => { const [r, g, b] = rgb.match(/[\\d.]+/g).slice(0, 3).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
     const box = (sel, inkSel = sel) => { const el = $(sel); const r = el.getBoundingClientRect(); return { sel, x: r.left, y: r.top, w: r.width, h: r.height, ink: lum(getComputedStyle($(inkSel)).color) }; };
@@ -520,6 +520,7 @@ async function textContrast(page) {
   info.boxes.forEach((b, i) => {
     if (p90[i] === null) { fails.push(`${b.sel} is off screen or empty: nothing measured`); return; }
     const ratio = (b.ink + 0.05) / (p90[i] + 0.05);
+    measured.push(`${b.sel.replace("#hero ", "")} ${ratio.toFixed(2)}`);
     if (ratio < 4.5) fails.push(`${b.sel} has ${ratio.toFixed(2)}:1 against the image behind it (need 4.5:1)`);
   });
   return fails;
@@ -539,7 +540,9 @@ async function restContrast() {
     await page.wait(1000);
     const lit = await probe(page, `return words().every((w) => vis(w) === 1)`);
     if (!lit) { fails.push(`${where}: the words are not all lit, so rest was not reached`); continue; }
-    for (const f of await textContrast(page)) fails.push(`${where}: ${f}`);
+    const measured = [];
+    for (const f of await textContrast(page, measured)) fails.push(`${where}: ${f}`);
+    console.log(`      (measured ${where}: ${measured.join(", ")})`);
   }
   return fails;
 }
