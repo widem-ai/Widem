@@ -1,7 +1,7 @@
 // Screenshots of the built hero for a human (or Alfred) to look at: `node scripts/shots.mjs [outDir]`.
 // Not a check: nothing here passes or fails.
 // Part 1, reduced motion: each shot is the scene's final state (the poster), per width, language and theme.
-// Part 2, motion on: the pinned 3D story at 0, 25, 50, 75 and 100% of its scroll, 1440x900 and 390x844, EN and AR.
+// Part 2, motion on: the pinned film at the storyboard's beats (0, 25, 45, 80, 100% of its scroll), 1440x900 and 390x844, EN and AR.
 // A screenshot is not motion: a person still has to watch it move.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -15,6 +15,9 @@ const SHOTS = [
   ["en", 390, 780, "dark"], ["ar", 390, 780, "dark"], ["ar", 768, 1024, "dark"], ["en", 1440, 900, "light"],
 ];
 const STORY = [["en", 1440, 900], ["ar", 1440, 900], ["en", 390, 844], ["ar", 390, 844]];
+// WIDTH=1440 limits both lists to one width (e.g. while the phone film is still rendering).
+const only = Number(process.env.WIDTH ?? 0);
+if (only) { for (const list of [SHOTS, STORY]) list.splice(0, list.length, ...list.filter((s) => s[1] === only)); }
 const { server, port } = await startServer(0);
 const page = await launch();
 const url = (lang) => `http://127.0.0.1:${port}/Widem/${lang === "ar" ? "ar/" : ""}`;
@@ -36,16 +39,18 @@ for (const [lang, width, height] of STORY) {
   await page.emulate({ width, height });
   await page.goto(url(lang));
   await page.evaluate(`document.fonts.ready.then(() => true)`);
-  // Wait for the scene to fade in over the poster, then past the load moment (the chip powering up).
+  // Wait for the film to fade in over the poster.
   for (let i = 0; i < 60 && !(await page.evaluate(`document.getElementById("hero").classList.contains("scene-on")`)); i++) await page.wait(200);
-  await page.wait(3400);
-  console.log(lang, width, await page.evaluate(`JSON.stringify({ state: document.getElementById("hero").__sceneState, stats: (({ buildMs, towers, layout, dpr }) => ({ buildMs, towers, layout, dpr }))(document.getElementById("hero").__scene?.stats ?? {}) })`));
-  for (const p of [0, 25, 50, 75, 100]) {
+  await page.wait(800);
+  console.log(lang, width, await page.evaluate(`JSON.stringify({ state: document.getElementById("hero").__sceneState, set: document.getElementById("hero").__film?.stats.set })`));
+  for (const p of [0, 25, 45, 80, 100]) {
     // The pinned range: the track's height minus the sticky hero's own.
     await page.evaluate(`(() => { const h = document.getElementById("hero"), sp = h.parentElement;
       const range = sp.offsetHeight - h.offsetHeight;
       window.scrollTo({ top: sp.getBoundingClientRect().top + scrollY + range * ${p / 100}, behavior: "instant" }); })()`);
-    await page.wait(900);
+    // frames stream in: wait until the frame for this position is the one on the canvas
+    for (let i = 0; i < 60 && !(await page.evaluate(`(() => { const f = document.getElementById("hero").__film; return !!f && Math.abs(f.stats.drawn - Math.round(${p / 100} * (f.stats.total - 1))) <= 1; })()`)); i++) await page.wait(150);
+    await page.wait(700);
     await save(`story-${lang}-${width}x${height}-${String(p).padStart(3, "0")}.png`);
   }
 }

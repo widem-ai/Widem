@@ -18,9 +18,10 @@ dist/  plain static files ──(GitHub Action)──▶ GitHub Pages, https://w
 No server, no database, no forms, no analytics, no cookies. One outbound link: the booking page (Calendly).
 `prototype/` holds the approved v5 HTML prototype, kept as the reference for text and design parity (A14).
 It is never served from the React build.
-`art/` holds the hero poster masters (PNG stills rendered from the hero's own three.js scene by
-`scripts/poster.mjs`) and `art/export.py`, which writes the web files to `public/hero/` (AVIF + WebP, a wide crop and
-a tall crop). Only `public/` is served.
+`art/` holds the hero film's source: `art/cinematic/scene.py` (the whole Blender scene as a script; its PNG frame
+masters are rendered into `art/cinematic/frames/`, which git ignores) and `art/export.py`, which writes the web files to
+`public/hero/` (the WebP frame sequences in `film/wide/` and `film/tall/`, and frame 0 of each as the AVIF + WebP
+poster). Only `public/` is served.
 
 ## 2. Who's responsible for what?
 
@@ -35,7 +36,7 @@ a tall crop). Only `public/` is served.
 | Scroll scenes | one component per section under `src/sections/`, each owning its own GSAP context and cleanup |
 | Shared scroll utilities (the route line, docks) | `src/scroll/`: nothing else measures layout for scroll |
 | SEO tags, hreflang, JSON-LD | `src/seo/`, rendered into the HTML at pre-render (never injected after load) |
-| Imagery | masters in `art/` (the hero poster is rendered from the scene: `scripts/poster.mjs`), web files made only by `art/export.py`; weight budgets live in the check (A6) |
+| Imagery | masters in `art/` (the hero film and its poster are rendered by `art/cinematic/scene.py` in Blender), web files made only by `art/export.py`; weight budgets live in the check (A6) |
 | Checks | `scripts/check.mjs`: one command, run by CI |
 
 ## 3. Why is it built this way? (don't "improve" these)
@@ -48,24 +49,25 @@ a tall crop). Only `public/` is served.
   `getBoundingClientRect` mid-animation put the route line 16–664 px off its docks on the prototype
   (2026-09-29). Measure layout positions (offset-based), and redraw on the page's own size changes, fonts,
   images and visibility changes.
-- **The hero is a three.js world (Mohannad, 2026-10-01: "remove the concept of this image ... keep the one that
-  looked like a 3D model").** Sketch v2 in production: a dark circuit board, a city of towers and a gold chip, with the
-  headline laid on the board as copper traces (the browser shapes the words on a canvas and marching squares turns
-  them into outlines, so Arabic joins with no text library). The hero is pinned (CSS `position: sticky` in a track
-  `--hero-pin` screens tall, only with JS and motion allowed, so the page has its full height at first paint and a
-  reload mid-story keeps its place). The scroll drives one GSAP timeline in `src/sections/Hero.tsx` that moves the
-  camera along its flight and powers each word in reading order (one source of truth for word timing: the scene draws
-  what the timeline says), then brings in the subline, button and cue. `src/sections/heroScene.ts` is the only
-  importer of three.js (approved 2026-09-30, bundled, about 129 KB gzipped in its own chunk) and is imported after
-  first paint. The concept-C photograph, its masters and the SVG trace headline of v3 are gone (in git history).
-- **Poster first.** A still of the scene at rest, without the headline on the board (`public/hero/scene-*`, rendered by
-  `scripts/poster.mjs`, mirrored for Arabic), is the first paint and the whole hero with reduced motion, JS off, no
-  WebGL 2 or a weak device (2 cores or fewer, 2 GB or less, Save-Data). There the headline is the HTML `<h1>` over the
-  poster; with JS and motion but no scene the words still fade on in reading order as the visitor scrolls. With the
-  scene running the `<h1>` stays in the page, visually hidden, for screen readers and search, because the board draws
-  the headline (the one place the headline is drawn in a canvas: Mohannad's chosen design). The section keeps the class
-  `night`. Re-render the poster whenever the scene changes; the check measures text contrast over it, and measures the
-  board headline's contrast at rest from screenshots at points the scene reports as letter and gap.
+- **The hero is a pre-rendered film scrubbed by the scroll (branch `hero-cinematic`, 2026-10-01, a proof: not yet
+  approved by Mohannad, so it does not replace the three.js hero of `hero-3d` until he says so).** His reference is a
+  2026 "cinematic scroll" site: one near-photoreal object, film light, haze, one bold line, the scroll as the playhead.
+  Real-time three.js cannot reach film lighting on a phone within a sane weight, so the shot ("the core": a gold,
+  glass-windowed chip on a dark board) is rendered offline in Blender (Cycles) by `art/cinematic/scene.py` and played as
+  a WebP frame sequence: `src/sections/heroFilm.ts` (no library, a 2D canvas) draws the frame that matches the pinned
+  scroll, cross-fading between neighbours, with progressive loading (coarse frames first, the frame in view jumps the
+  queue) after the page's load event. Two sets: wide (desktop, 96 frames) and tall (portrait phones, 72 frames, its
+  own camera). The hero is pinned as before (CSS `position: sticky` in a track `--hero-pin` screens tall, only with JS
+  and motion allowed). One GSAP timeline in `src/sections/Hero.tsx` owns the playhead and the text: the text steps
+  aside for the glide and locks back in, word by word, at the reveal. The headline is always the HTML `<h1>`, never
+  drawn into the frames. Storyboard and scene script: vault `output/widem-website/design/hero-cinematic/`. three.js is
+  no longer imported on this branch (it stays in package.json until the branch is merged or dropped).
+- **Poster first.** Frame 0 of each film (`public/hero/scene-wide|tall.*`, written by `art/export.py` from the same
+  master as the frame) is the first paint, the LCP, and the whole hero with reduced motion, JS off or a weak device
+  (2 cores or fewer, 2 GB or less, Save-Data: no frames are downloaded; the text story still runs over the poster).
+  Because frame 0 is the poster, the canvas fading in shows no jump (the check compares them pixel by pixel). Re-export
+  whenever the film is re-rendered; the check measures text contrast over the poster and over the film. The section
+  keeps the class `night`.
 - **The header contract: `<html data-stage>`.** `"intro"` while the visitor is inside the pinned hero story, `"site"`
   once it has ended and the page releases (and `"intro"` again on scrolling back into it). **Unset** when there is no
   pinned story (reduced motion, JS off): the header then shows the full site navigation. Only the hero writes it; the
@@ -123,7 +125,7 @@ Language switch: a link to the same section in the other page (A2), not a client
 | A string | both `content/*.ts` files, same key |
 | A token | `src/styles/tokens.css` |
 | A check | `scripts/check.mjs`, with a planted break proving it fails |
-| A dependency | only with a stated reason and Alfred's yes; record it here if it changes an answer above (three.js: the hero scene only) |
+| A dependency | only with a stated reason and Alfred's yes; record it here if it changes an answer above (three.js: unused on `hero-cinematic`; the film needs none) |
 
 ## 8. When do you stop and ask?
 

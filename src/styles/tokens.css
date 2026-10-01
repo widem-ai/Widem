@@ -60,10 +60,9 @@
   --hero-fallback: 4s;        /* CSS only: if the scene never starts, show the hero anyway */
   --hero-guide-cycle: 1.8s;   /* the pulse running down the scroll guide's trace */
   --hero-trace-idle: rgba(47, 211, 158, .26);  /* the scroll guide's unlit trace */
-  /* The scene (three.js, heroScene.ts) and its poster. */
-  --hero-scene-fade: .9s;     /* the scene fading in over the poster once its first frame is drawn */
-  --hero-push: 1.08;          /* without the scene: how far the poster is pushed in by the end of the pinned story */
-  --hero-foot: 100px;         /* with the scene: the subline and button end this far above the first screen's foot */
+  /* The film (heroFilm.ts, frames rendered in Blender) and its poster. */
+  --hero-scene-fade: .4s;     /* the film fading in over the poster once its first frame is drawn (frame 0 = poster) */
+  --hero-push: 1.08;          /* without the film (weak device): how far the poster is pushed in by the end of the pinned story */
   --hero-min: 100svh;         /* the hero is one screen: the scene's canvas is the screen */
 }
 /* The page's own ground (follows the theme), for a .night scene's fade into the section below it. */

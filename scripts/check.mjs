@@ -276,57 +276,74 @@ async function reducedMotion() {
   return fails;
 }
 
-/** Open with motion on and wait for the 3D scene to fade in over the poster; returns false if it never did. */
+/** Open with motion on and wait for the film to fade in over the poster; returns false if it never did. */
 async function openScene(page, href, width, height) {
   await open(page, href, { width, height });
   const on = await until(page, `$("#hero").classList.contains("scene-on") && !$("#hero").classList.contains("boot")`, 9000);
-  if (on) await page.wait(1100); // the canvas's fade
+  if (on) await page.wait(600); // the canvas's fade
   return !!on;
 }
-const sceneSnap = `const s = $("#hero").__scene; return JSON.stringify({ fill: words().map(vis), board: s ? s.words() : [], cam: s ? s.cam() : -1,
-  chip: s ? s.chip() : null, rest: [heroParts.slogan, heroParts.button, heroParts.cue].map(vis), pinned: story().pinned,
-  canvas: vis($("#hero .hero-scene")), h1: $("#hero h1 .sr").textContent.replace(/\\s+/g, " ").trim(), state: $("#hero").__sceneState })`;
+const filmSnap = `const f = $("#hero").__film; return JSON.stringify({ set: f ? f.stats.set : null, drawn: f ? f.stats.drawn : -1,
+  total: f ? f.stats.total : 0, loaded: f ? f.stats.loaded : 0, p: $("#hero").__p ?? -1, parts: JSON.parse(${partsJson}),
+  words: words().map(vis), pinned: story().pinned, canvas: vis($("#hero .hero-scene")), state: $("#hero").__sceneState,
+  h1: $("#hero h1 .sr").textContent.replace(/\\s+/g, " ").trim() })`;
+/** Scroll to p of the story, then wait until the frame for p is loaded and on the canvas (frames stream in). */
+async function filmAt(page, p, ms = 9000) {
+  await page.evaluate(`(() => { ${PROBE} toStory(${p}); })()`);
+  await until(page, `(() => { const f = $("#hero").__film; if (!f) return false; const want = Math.round(Math.min(1, ${p}) * (f.stats.total - 1));
+    return Math.abs(f.stats.drawn - want) <= 1; })()`, ms);
+  await page.wait(500); // the scrub's catch-up (--hero-scrub) and the text tweens settle
+  return JSON.parse(await probe(page, filmSnap));
+}
+/** Mean absolute difference (0-255) between the film canvas and the poster drawn the same way (cover, centred). */
+const posterDiff = `(() => { const cv = $("#hero .hero-scene"), img = $("#hero-art"); if (!cv.width || !img.complete) return 999;
+  const o = document.createElement("canvas"); o.width = cv.width; o.height = cv.height; const x = o.getContext("2d");
+  const s = Math.max(o.width / img.naturalWidth, o.height / img.naturalHeight), w = img.naturalWidth * s, h = img.naturalHeight * s;
+  x.drawImage(img, (o.width - w) / 2, (o.height - h) / 2, w, h);
+  const a = cv.getContext("2d").getImageData(0, 0, cv.width, cv.height).data, b = x.getImageData(0, 0, o.width, o.height).data;
+  let d = 0; for (let i = 0; i < a.length; i += 16) d += Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]);
+  return d / (a.length / 16) / 3; })()`;
 
-// 8. The 3D story, motion on, 1440x900 and 390x844, EN and AR: the scene replaces the poster; before the pinned
-// scroll every word on the board is dark, the chip whole on screen and the subline/button/cue hidden; halfway the
-// words are partly lit in reading order; at the end all lit with subline, button and cue; dark again back at the top.
-// At rest on phones the chip is wholly on or wholly off screen, never cut at the edge.
+// 8. The film, motion on, 1440x900 and 390x844, EN and AR: the right set for the screen (tall on portrait phones);
+// at the top the canvas shows frame 0 and it matches the poster (no jump when the film fades in), with the headline,
+// subline and button on screen; the drawn frame follows the scroll (20/45/80%: within one frame of p x (n-1), and in
+// order); during the glide the text has stepped aside; at the end the last frame with everything shown; back at the
+// top frame 0 again with the text back.
 const PHONE_DESK = [[1440, 900], [390, 844]];
-async function traceStory() {
+async function filmStory() {
   const { page, url } = await browser();
   const { en } = await load("content/en.ts");
   const { ar } = await load("content/ar.ts");
   const fails = [];
-  const inside = (c) => c && c.x0 >= 0.005 && c.x1 <= 0.995 && c.y0 >= 0.005 && c.y1 <= 0.995;
-  const outside = (c) => c && (c.x1 <= 0 || c.x0 >= 1 || c.y1 <= 0 || c.y0 >= 1);
   for (const [lang, c] of [["en", en], ["ar", ar]]) for (const [width, height] of PHONE_DESK) {
     const where = `${lang} ${width}x${height}`;
-    if (!(await openScene(page, url(lang), width, height))) { fails.push(`${where}: the 3D scene never came up (${await probe(page, `return $("#hero").__sceneState ?? "not started"`)})`); continue; }
-    const top = JSON.parse(await probe(page, sceneSnap));
+    if (!(await openScene(page, url(lang), width, height))) { fails.push(`${where}: the film never came up (${await probe(page, `return $("#hero").__sceneState ?? "not started"`)})`); continue; }
+    const top = JSON.parse(await probe(page, filmSnap));
+    const want = width < height ? "tall" : "wide";
     if (!top.pinned) { fails.push(`${where}: the hero is not pinned with motion on`); continue; }
-    if (top.canvas !== 1) fails.push(`${where}: the scene's canvas is not shown (opacity ${top.canvas})`);
-    if (top.h1 !== headline(c.hero)) fails.push(`${where}: the <h1> reads "${top.h1}" with the scene on, want the headline`);
-    if (top.board.length !== top.fill.length) fails.push(`${where}: the board has ${top.board.length} words, the <h1> ${top.fill.length}`);
-    if (top.board.some((v) => v !== 0) || top.cam !== 0) fails.push(`${where}: before scrolling, the board is not at its first frame (words ${top.board}, camera ${top.cam})`);
-    if (!inside(top.chip)) fails.push(`${where}: at 0% the chip is cut by the screen edge (${JSON.stringify(top.chip)})`);
-    if (top.rest.some((o) => o !== 0)) fails.push(`${where}: before scrolling, subline/button/cue already show (${top.rest})`);
-    await page.evaluate(`(() => { ${PROBE} toStory(0.5); })()`);
-    await page.wait(900);
-    const mid = JSON.parse(await probe(page, sceneSnap));
-    const lit = mid.board.filter((v) => v === 1).length, n = mid.board.length;
-    if (!(lit > 0 && lit < n)) fails.push(`${where}: halfway, ${lit}/${n} words on the board are lit (want some, not all)`);
-    if (mid.board.some((v, i) => i && v > mid.board[i - 1])) fails.push(`${where}: halfway, words are not lit in reading order (${mid.board})`);
-    if (!(mid.cam > 0.3 && mid.cam < 0.8)) fails.push(`${where}: halfway, the camera is at ${mid.cam} of its flight`);
-    await page.evaluate(`(() => { ${PROBE} toStory(1); })()`);
-    await page.wait(900);
-    const end = JSON.parse(await probe(page, sceneSnap));
-    if (end.board.some((v) => v !== 1) || end.cam !== 1) fails.push(`${where}: after the pinned scroll, the board is not at rest (words ${end.board}, camera ${end.cam})`);
-    if (end.rest.some((o) => o !== 1)) fails.push(`${where}: after the pinned scroll, subline/button/cue are not all shown (${end.rest})`);
-    if (!inside(end.chip) && !outside(end.chip)) fails.push(`${where}: at rest the chip is cut by the screen edge (${JSON.stringify(end.chip)})`);
-    await page.evaluate(`window.scrollTo({ top: 0, behavior: "instant" })`);
-    await page.wait(900);
-    const back = JSON.parse(await probe(page, sceneSnap));
-    if (back.board.some((v) => v !== 0) || back.cam !== 0) fails.push(`${where}: back at the top, the board is not dark again (words ${back.board}, camera ${back.cam})`);
+    if (top.set !== want) fails.push(`${where}: plays the "${top.set}" film, want "${want}"`);
+    if (top.canvas !== 1) fails.push(`${where}: the film's canvas is not shown (opacity ${top.canvas})`);
+    if (top.drawn !== 0) fails.push(`${where}: at the top the canvas shows frame ${top.drawn}, want 0`);
+    if (top.h1 !== headline(c.hero)) fails.push(`${where}: the <h1> reads "${top.h1}", want the headline`);
+    for (const k of ["h1", "slogan", "button"]) if (top.parts[k] !== 1) fails.push(`${where}: at the top the ${k} is not shown (opacity ${top.parts[k]})`);
+    const diff = await page.evaluate(posterDiff);
+    if (!(diff < 6)) fails.push(`${where}: frame 0 on the canvas differs from the poster by ${Number(diff).toFixed(1)}/255 on average (want < 6): the fade-in would jump`);
+    let last = 0;
+    for (const p of [0.2, 0.45, 0.8]) {
+      const s = await filmAt(page, p);
+      const exp = Math.round(p * (s.total - 1));
+      if (Math.abs(s.drawn - exp) > 1) fails.push(`${where}: at ${p * 100}% of the story the canvas shows frame ${s.drawn}, want ${exp} (of ${s.total})`);
+      if (s.drawn <= last) fails.push(`${where}: at ${p * 100}% the frame (${s.drawn}) did not move forward from ${last}`);
+      last = s.drawn;
+      if (p === 0.45 && (s.parts.h1 !== 0 || s.parts.button !== 0)) fails.push(`${where}: during the glide the text has not stepped aside (h1 ${s.parts.h1}, button ${s.parts.button})`);
+    }
+    const end = await filmAt(page, 1);
+    if (end.drawn !== end.total - 1) fails.push(`${where}: at the end the canvas shows frame ${end.drawn}, want ${end.total - 1}`);
+    for (const [k, o] of Object.entries(end.parts)) if (o !== 1) fails.push(`${where}: at the end the ${k} is not shown (opacity ${o})`);
+    if (end.words.some((o) => o !== 1)) fails.push(`${where}: at the end not every headline word is back (${end.words})`);
+    const back = await filmAt(page, 0);
+    if (back.drawn !== 0) fails.push(`${where}: back at the top the canvas shows frame ${back.drawn}, want 0`);
+    for (const k of ["h1", "slogan", "button"]) if (back.parts[k] !== 1) fails.push(`${where}: back at the top the ${k} is not shown (opacity ${back.parts[k]})`);
   }
   return fails;
 }
@@ -409,19 +426,19 @@ async function noHorizontalScroll() {
       const m = JSON.parse(await probe(page, widthNow));
       if (m.doc > m.view) fails.push(`${lang} ${width}px: page is ${m.doc}px wide in a ${m.view}px viewport`);
     }
-    // Resize 1440 -> 390 without reloading: still no overflow, the poster switches to the tall crop, and the scene
-    // re-lays its headline for a narrow screen.
-    if (!(await openScene(page, url(lang), 1440, 900))) { fails.push(`${lang}: the 3D scene never came up`); continue; }
+    // Resize 1440 -> 390 without reloading: still no overflow, the poster switches to the tall crop, and the film
+    // swaps to the tall set (its own camera).
+    if (!(await openScene(page, url(lang), 1440, 900))) { fails.push(`${lang}: the film never came up`); continue; }
     await page.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
     await page.wait(900);
-    await until(page, `/scene-tall\\./.test($("#hero-art")?.currentSrc ?? "") && $("#hero-art").complete && $("#hero").__scene?.stats.layout === "narrow"`, 4000);
+    await until(page, `/scene-tall\\./.test($("#hero-art")?.currentSrc ?? "") && $("#hero-art").complete && $("#hero").__film?.stats.set === "tall" && $("#hero").__film.stats.drawn >= 0`, 6000);
     const r = JSON.parse(await probe(page, `const art = $("#hero-art"); return JSON.stringify({ doc: document.documentElement.scrollWidth,
       view: document.documentElement.clientWidth, src: art ? art.currentSrc : null, ok: art ? art.complete && art.naturalWidth > 0 : false,
-      layout: $("#hero").__scene?.stats.layout, canvasW: $("#hero .hero-scene").width })`));
+      layout: $("#hero").__film?.stats.set, canvasW: $("#hero .hero-scene").width })`));
     if (r.doc > r.view) fails.push(`${lang} resized to 390px: page is ${r.doc}px wide`);
     if (!/scene-tall\./.test(r.src ?? "")) fails.push(`${lang} resized to 390px: the poster is still "${r.src}", want the tall crop`);
     else if (!r.ok) fails.push(`${lang} resized to 390px: the tall poster did not load`);
-    if (r.layout !== "narrow") fails.push(`${lang} resized to 390px: the scene kept its "${r.layout}" headline layout`);
+    if (r.layout !== "tall") fails.push(`${lang} resized to 390px: the film is the "${r.layout}" set, want "tall"`);
     if (!(r.canvasW > 0 && r.canvasW <= 390 * 2)) fails.push(`${lang} resized to 390px: the canvas is ${r.canvasW}px wide`);
   }
   return fails;
@@ -453,56 +470,65 @@ async function jsOff() {
   return fails;
 }
 
-// 10b. No WebGL, and a weak device (2 cores): the scene is not run; the poster stays with the HTML headline, and the
-// story still works as light motion (the pin, the words fading on in reading order, the stage), with nothing logged.
+// 10b. A weak device (2 cores): the film is not streamed; the poster stays with the HTML headline, and the story still
+// runs as light motion over it (the pin, the text stepping aside and locking back in, the stage), with nothing logged.
 async function noScene() {
   const { page, url } = await browser();
   const fails = [];
-  const cases = [
-    ["no WebGL", "no-webgl", async () => (await page.send("Page.addScriptToEvaluateOnNewDocument", { source:
-      `(() => { const g = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function (t, o) { return /webgl/.test(t) ? null : g.call(this, t, o); }; })();` })).identifier],
-    ["weak device", "weak-device", async () => { await page.send("Emulation.setHardwareConcurrencyOverride", { hardwareConcurrency: 2 }); return null; }],
-  ];
-  for (const [name, want, setup] of cases) for (const lang of ["en", "ar"]) {
-    const where = `${lang} ${name}`;
-    const id = await setup();
+  for (const lang of ["en", "ar"]) {
+    const where = `${lang} weak device`;
+    await page.send("Emulation.setHardwareConcurrencyOverride", { hardwareConcurrency: 2 });
     await open(page, url(lang), { width: 390, height: 844 });
-    await until(page, `$("#hero").__sceneState === "${want}"`, 6000);
-    await page.wait(800);
+    await until(page, `$("#hero").__sceneState === "weak-device"`, 6000);
+    await page.wait(1500);
     const snap = `return JSON.stringify({ state: $("#hero").__sceneState ?? null, on: $("#hero").classList.contains("scene-on"), canvas: vis($("#hero .hero-scene")),
-      poster: $("#hero-art")?.complete && $("#hero-art").naturalWidth > 0 && vis($("#hero-art")) === 1, fill: words().map(vis), pinned: story().pinned,
+      poster: $("#hero-art")?.complete && $("#hero-art").naturalWidth > 0 && vis($("#hero-art")) === 1, pinned: story().pinned,
+      frames: performance.getEntriesByType("resource").filter((e) => /\\/hero\\/film\\//.test(e.name)).length,
       stage: document.documentElement.dataset.stage ?? null, parts: JSON.parse(${partsJson}) })`;
     const top = JSON.parse(await probe(page, snap));
-    if (top.state !== want) fails.push(`${where}: scene state "${top.state}", want "${want}"`);
-    if (top.on || top.canvas !== 0) fails.push(`${where}: the scene shows (canvas opacity ${top.canvas})`);
+    if (top.state !== "weak-device") fails.push(`${where}: film state "${top.state}", want "weak-device"`);
+    if (top.on || top.canvas !== 0) fails.push(`${where}: the film shows (canvas opacity ${top.canvas})`);
+    if (top.frames) fails.push(`${where}: ${top.frames} film frames were downloaded; a weak device gets none`);
     if (!top.poster) fails.push(`${where}: the poster is not shown`);
     if (!top.pinned || top.stage !== "intro") fails.push(`${where}: no pinned story (pinned ${top.pinned}, stage ${top.stage})`);
-    if (top.fill.some((o) => o !== 0)) fails.push(`${where}: before scrolling the words already show (${top.fill})`);
-    await page.evaluate(`(() => { ${PROBE} toStory(0.5); })()`);
+    if (top.parts.h1 !== 1) fails.push(`${where}: before scrolling the headline is not shown`);
+    await page.evaluate(`(() => { ${PROBE} toStory(0.45); })()`);
     await page.wait(900);
     const mid = JSON.parse(await probe(page, snap));
-    if (mid.fill.some((o, i) => i && o > mid.fill[i - 1]) || !mid.fill.some((o) => o === 1)) fails.push(`${where}: halfway the words are not fading on in reading order (${mid.fill})`);
+    if (mid.parts.h1 !== 0) fails.push(`${where}: halfway the text has not stepped aside (h1 ${mid.parts.h1})`);
     await page.evaluate(`(() => { ${PROBE} toStory(1.2); })()`);
     await page.wait(900);
     const end = JSON.parse(await probe(page, snap));
     for (const [k, o] of Object.entries(end.parts)) if (o !== 1) fails.push(`${where}: after the story, ${k} opacity ${o}, want 1`);
     if (end.stage !== "site") fails.push(`${where}: after the story data-stage is ${end.stage}, want "site"`);
-    if (id) await page.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: id });
-    else await page.send("Emulation.setHardwareConcurrencyOverride", { hardwareConcurrency: 8 });
+    await page.send("Emulation.setHardwareConcurrencyOverride", { hardwareConcurrency: 8 });
   }
   return fails;
 }
 
-// 11. The hero poster as files: both crops in both formats, inside the weight budget (A6), preloaded, and present in
-// the static HTML (so it shows with JS off). Rendered from the scene by scripts/poster.mjs, encoded by art/export.py.
-const ART_BUDGET_KB = { "hero/scene-wide.avif": 120, "hero/scene-tall.avif": 90, "hero/scene-wide.webp": 180, "hero/scene-tall.webp": 140 };
+// 11. The film as files: every frame of both sets present, each set inside its weight budget (desktop = wide frames +
+// wide poster, phone = tall frames + tall poster), both posters in both formats, preloaded and in the static HTML (so
+// they show with JS off); no WebGL library in the entry bundle. Encoded by art/export.py from the Blender masters.
+const FILM_SETS = { wide: { count: 96, budgetKB: 5000 }, tall: { count: 72, budgetKB: 2500 } };
+const ART_BUDGET_KB = { "hero/scene-wide.avif": 120, "hero/scene-tall.avif": 70, "hero/scene-wide.webp": 160, "hero/scene-tall.webp": 100 };
 function heroArtFiles() {
-  const fails = [];
-  for (const [file, kb] of Object.entries(ART_BUDGET_KB)) {
+  const fails = [], kb = (p) => statSync(p).size / 1024;
+  for (const [file, max] of Object.entries(ART_BUDGET_KB)) {
     const p = join(DIST, file);
     if (!existsSync(p)) { fails.push(`dist/${file} is missing`); continue; }
-    const size = Math.ceil(statSync(p).size / 1024);
-    if (size > kb) fails.push(`dist/${file} is ${size} KB (budget ${kb} KB)`);
+    if (kb(p) > max) fails.push(`dist/${file} is ${Math.ceil(kb(p))} KB (budget ${max} KB)`);
+  }
+  for (const [set, { count, budgetKB }] of Object.entries(FILM_SETS)) {
+    let total = kb(join(DIST, `hero/scene-${set}.avif`));
+    const missing = [];
+    for (let i = 0; i < count; i++) {
+      const p = join(DIST, `hero/film/${set}/${String(i).padStart(3, "0")}.webp`);
+      if (!existsSync(p)) missing.push(i); else total += kb(p);
+    }
+    if (existsSync(join(DIST, `hero/film/${set}/${String(count).padStart(3, "0")}.webp`))) fails.push(`hero/film/${set}/ has more than ${count} frames: heroFilm.ts FILM and this check disagree`);
+    if (missing.length) fails.push(`hero/film/${set}/ is missing ${missing.length} of ${count} frames (first: ${missing[0]})`);
+    if (total > budgetKB) fails.push(`the ${set} film weighs ${Math.round(total)} KB with its poster (budget ${budgetKB} KB)`);
+    console.log(`      (measured: ${set} film ${count} frames + poster = ${Math.round(total)} KB, budget ${budgetKB} KB)`);
   }
   for (const lang of ["en", "ar"]) {
     const html = distPage(lang) ?? "", where = `dist/${PAGES[lang].file}`;
@@ -518,11 +544,11 @@ function heroArtFiles() {
     const preloads = [...html.matchAll(/<link rel="preload" as="image"[^>]*>/g)].map((m) => attr(m[0], "href"));
     for (const file of ["hero/scene-wide.avif", "hero/scene-tall.avif"])
       if (!preloads.includes(`${BASE}${file}`)) fails.push(`${where}: no preload for ${file}`);
-    // three.js is never in the first-paint bundle: only the scene's own chunk, loaded after paint, carries it.
+    if (preloads.some((h) => /\/hero\/film\//.test(h ?? ""))) fails.push(`${where}: a film frame is preloaded; frames load only after the page's load`);
     const entry = html.match(/<script type="module"[^>]*src="([^"]+)"/)?.[1];
     const js = entry && existsSync(join(DIST, entry.replace(BASE, ""))) ? read(join(DIST, entry.replace(BASE, ""))) : "";
     if (!js) fails.push(`${where}: could not read the entry script`);
-    else if (/WebGLRenderer|THREE\.WebGLRenderer|webglcontextlost/.test(js)) fails.push(`${where}: three.js is in the entry bundle; it must load after first paint`);
+    else if (/WebGLRenderer|webglcontextlost/.test(js)) fails.push(`${where}: a WebGL library is in the entry bundle`);
   }
   return fails;
 }
@@ -593,80 +619,46 @@ async function textContrast(page, boxes, measured = []) {
   return fails;
 }
 
-// 12b. Readability at rest with the scene on: at the end of the pinned story the headline drawn on the board is
-// measured from a screenshot at points the scene itself reports as inside a letter and between letters (its own mask,
-// projected through its camera): the median letter against the brightest tenth of the gaps must give 3:1 (large text),
-// with at least 200 samples of each on screen, and every line's letters at least 16px tall. The subline and cue use
-// the rule above. 390x844 and 1440x900, EN/AR.
+// 12b. Readability over the film, motion on: the headline, subline (and at the end the cue) measured from a screenshot
+// with the text made invisible, at the top (frame 0) and at the end (the last frame, text locked back in). 4.5:1
+// against the brightest tenth of the pixels behind each. 390x844 and 1440x900, EN/AR.
 async function restContrast() {
   const { page, url } = await browser();
   const fails = [];
   for (const lang of ["en", "ar"]) for (const [width, height] of PHONE_DESK) {
-    const where = `${lang} ${width}x${height} at rest`;
-    if (!(await openScene(page, url(lang), width, height))) { fails.push(`${where}: the 3D scene never came up`); continue; }
-    await page.evaluate(`(() => { ${PROBE} toStory(1); })()`);
-    await page.wait(3200); // past the gold pulse and the load moment
-    const pts = JSON.parse(await probe(page, `const s = $("#hero").__scene; if (!s || s.cam() !== 1) return "null"; return JSON.stringify(s.probe(1200))`));
-    if (!pts) { fails.push(`${where}: the board did not reach rest`); continue; }
-    const shot = await page.screenshot();
-    const m = JSON.parse(await page.evaluate(`(async () => {
-      const img = new Image(); img.src = ${JSON.stringify(shot)}; await img.decode();
-      const cv = document.createElement("canvas"); cv.width = img.width; cv.height = img.height;
-      const cx = cv.getContext("2d"); cx.drawImage(img, 0, 0); const d = cx.getImageData(0, 0, cv.width, cv.height).data;
-      const lin = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
-      const L = ([x, y]) => { x = Math.round(x); y = Math.round(y); if (x < 0 || y < 0 || x >= cv.width || y >= cv.height) return null; const i = (y * cv.width + x) * 4; return 0.2126 * lin(d[i]) + 0.7152 * lin(d[i + 1]) + 0.0722 * lin(d[i + 2]); };
-      const pts = ${JSON.stringify(pts)};
-      const fg = pts.fg.map(L).filter((v) => v !== null).sort((a, b) => a - b), bg = pts.bg.map(L).filter((v) => v !== null).sort((a, b) => a - b);
-      return JSON.stringify({ nf: fg.length, nb: bg.length, fg: fg[Math.floor(fg.length / 2)], bg: bg[Math.floor(bg.length * 0.9)], cap: pts.cap });
-    })()`));
-    if (m.nf < 200 || m.nb < 200) { fails.push(`${where}: only ${m.nf} letter and ${m.nb} gap samples on screen (need 200 each): the headline is not in view`); continue; }
-    const ratio = (m.fg + 0.05) / (m.bg + 0.05), minCap = Math.min(...m.cap);
-    if (ratio < 3) fails.push(`${where}: the board headline has ${ratio.toFixed(2)}:1 (letters against gaps; need 3:1)`);
-    if (minCap < 16) fails.push(`${where}: a line of the board headline is ${minCap}px tall (need 16px)`);
-    const measured = [`board headline ${ratio.toFixed(2)} (letters ${minCap}-${Math.max(...m.cap)}px)`];
-    for (const f of await textContrast(page, [["#hero .slogan"], ["#hero .cue"]], measured)) fails.push(`${where}: ${f}`);
-    console.log(`      (measured ${where}: ${measured.join(", ")})`);
+    if (!(await openScene(page, url(lang), width, height))) { fails.push(`${lang} ${width}x${height}: the film never came up`); continue; }
+    for (const p of [0, 0.8, 1]) {
+      const where = `${lang} ${width}x${height} at ${p * 100}%`;
+      const s = await filmAt(page, p);
+      const exp = Math.round(p * (s.total - 1));
+      if (Math.abs(s.drawn - exp) > 1) { fails.push(`${where}: frame ${s.drawn} on the canvas, want ${exp}: not measured`); continue; }
+      const boxes = p === 0 ? [["#hero h1", "#hero h1 .w"], ["#hero .slogan"]] : [["#hero h1", "#hero h1 .w"], ["#hero .slogan"], ["#hero .cue"]];
+      const measured = [];
+      for (const f of await textContrast(page, boxes, measured)) fails.push(`${where}: ${f}`);
+      console.log(`      (measured ${where}: ${measured.join(", ")})`);
+    }
   }
   return fails;
 }
 
-// 13. The scroll scene: the camera's progress follows the pinned scroll while the text stays put; back at the top
-// everything is at rest again. Also when the page is loaded already scrolled into the story (reload, deep link): the
-// camera and the words match the position, not the first frame.
+// 13. Loaded already scrolled into the story (reload, deep link): the film shows the frame for that position, not the
+// first frame, and the text is in its state for that position.
 async function heroScroll() {
   const { page, url } = await browser();
   const fails = [];
-  const state = `const s = $("#hero").__scene; return JSON.stringify({ cam: s ? s.cam() : -1, on: $("#hero").classList.contains("scene-on"),
-    textTop: Math.round($("#hero .hero-in").getBoundingClientRect().top), lit: words().filter((w) => vis(w) === 1).length,
-    board: s ? s.words().filter((v) => v === 1).length : -1, y: scrollY, range: story().range })`;
-  for (const lang of ["en", "ar"]) {
-    if (!(await openScene(page, url(lang), 1440, 900))) { fails.push(`${lang}: the 3D scene never came up`); continue; }
-    const top = JSON.parse(await probe(page, state));
-    if (top.cam !== 0) fails.push(`${lang}: at the top the camera is already at ${top.cam}`);
-    if (top.range < 200) { fails.push(`${lang}: the pinned story is too short to test (${top.range}px)`); continue; }
-    await page.evaluate(`(() => { ${PROBE} toStory(0.6); })()`);
-    await page.wait(900);
-    const down = JSON.parse(await probe(page, state));
-    if (!(Math.abs(down.cam - 0.6 / 0.9) < 0.03)) fails.push(`${lang}: at 60% of the story the camera is at ${down.cam} of its flight, want ${(0.6 / 0.9).toFixed(3)}`);
-    if (Math.abs(down.textTop - top.textTop) > 1) fails.push(`${lang}: the text moved from ${top.textTop}px to ${down.textTop}px while the hero is pinned`);
-    await page.evaluate(`window.scrollTo({ top: 0, behavior: "instant" })`);
-    await page.wait(900);
-    const back = JSON.parse(await probe(page, state));
-    if (back.cam !== 0 || back.lit !== 0 || back.board !== 0) fails.push(`${lang}: back at the top the scene is not at its first frame (camera ${back.cam}, ${back.board} words lit)`);
-
-    // Reload while scrolled into the story: the browser restores the position; the scene must match it.
-    await page.evaluate(`(() => { ${PROBE} toStory(0.6); })()`);
-    await page.wait(300);
+  for (const lang of ["en", "ar"]) for (const [width, height] of PHONE_DESK) {
+    const where = `${lang} ${width}x${height}`;
+    if (!(await openScene(page, url(lang), width, height))) { fails.push(`${where}: the film never came up`); continue; }
+    await filmAt(page, 0.45);
     await page.send("Page.reload");
-    await until(page, `$("#hero").classList.contains("scene-on")`, 9000);
-    await page.wait(1200);
-    const deep = JSON.parse(await probe(page, state));
-    if (deep.y < 100) fails.push(`${lang}: the reload did not keep the scroll position (${deep.y}px), so the deep-load state was not tested`);
-    else {
-      if (!deep.on) fails.push(`${lang}: loaded at ${deep.y}px, but the scene did not come up`);
-      if (!(deep.cam > 0.5)) fails.push(`${lang}: loaded at ${deep.y}px (60% of the story), but the camera is at ${deep.cam}`);
-      if (!(deep.board > 0)) fails.push(`${lang}: loaded at ${deep.y}px (60% of the story), but no word on the board is lit`);
-    }
+    await until(page, `$("#hero").classList.contains("scene-on") && $("#hero").__film && Math.abs($("#hero").__film.stats.drawn - Math.round(${0.45} * ($("#hero").__film.stats.total - 1))) <= 1`, 9000);
+    await page.wait(600);
+    const s = { ...JSON.parse(await probe(page, filmSnap)), ...JSON.parse(await probe(page, `const st = story(); return JSON.stringify({ y: scrollY, start: st.start, range: st.range })`)) };
+    const p = s.range ? (s.y - s.start) / s.range : 0;
+    if (s.y < 100) { fails.push(`${where}: the reload did not keep the scroll position (${s.y}px), so the deep-load state was not tested`); continue; }
+    const exp = Math.round(Math.min(1, p) * (s.total - 1));
+    if (Math.abs(s.drawn - exp) > 2) fails.push(`${where}: loaded at ${s.y}px (${(p * 100).toFixed(0)}% of the story), but the canvas shows frame ${s.drawn}, want about ${exp}`);
+    if (s.parts.h1 !== 0) fails.push(`${where}: loaded mid-glide, but the headline shows (opacity ${s.parts.h1}); the text is not in its state for that position`);
   }
   return fails;
 }
@@ -912,18 +904,18 @@ const CHECKS = [
   ["A5: no founder name, email, key or internal URL", a5Grep],
   ["TypeScript (tsc --noEmit)", typescript],
   ["Tailwind: token colours only, no default palette, no raw colours in classes", tailwindTokens],
-  ["hero, reduced motion: poster + HTML headline, nothing moving, no scene/pin/guide/stage (390/1440, EN/AR)", reducedMotion],
-  ["hero 3D story: board dark and chip whole at 0%, words lit in order, all lit at rest (390/1440, EN/AR)", traceStory],
+  ["hero, reduced motion: poster + HTML headline, nothing moving, no film/pin/guide/stage (390/1440, EN/AR)", reducedMotion],
+  ["hero film: right set, frame 0 = poster, frame follows the scroll in order, text steps aside and locks back in (390/1440, EN/AR)", filmStory],
   ["hero scroll guide: shown at the top, hidden once scrolling starts (390/1440, EN/AR)", scrollGuide],
   ["header contract: data-stage intro inside the story, site after it", stageAttribute],
   ["hero button keeps its passing sheen", buttonSheen],
   ["hero: no horizontal scroll at 360/390/1440 EN/AR, and after a resize", noHorizontalScroll],
   ["hero, JS off: headline, subhead and button readable over the poster; no canvas, guide or data-stage", jsOff],
-  ["hero, no WebGL / weak device: poster + HTML headline, light word-by-word story, nothing logged", noScene],
-  ["hero poster: both crops, both formats, in budget, preloaded, in the static HTML; three.js not in the entry bundle", heroArtFiles],
+  ["hero, weak device: poster + HTML headline, no frames downloaded, the text story still runs", noScene],
+  ["hero film files: every frame, each set in budget, posters in budget, preloaded, in the static HTML; no frame preloaded", heroArtFiles],
   ["hero poster on screen: right crop, text and header readable over it (360-1920, EN/AR, dark/light)", heroArtOnScreen],
-  ["hero at rest, scene on: board headline readable, measured from screenshots (390/1440, EN/AR)", restContrast],
-  ["hero scroll scene: camera follows the pinned scroll, first frame at the top, right after a scrolled reload", heroScroll],
+  ["hero over the film: headline, subline, cue readable at 0%, 80%, 100%, measured from screenshots (390/1440, EN/AR)", restContrast],
+  ["hero film after a scrolled reload: the frame and the text match the position (390/1440, EN/AR)", heroScroll],
   ["nav: strings and links match the prototype (EN/AR, bar and phone menu)", navParity],
   ["nav stages: intro = brand + AR|EN only, site/unset = full nav; Tab order, focus ring, RTL (390/1440)", navStates],
   ["nav: phone menu opens/closes by keyboard and touch, aria-expanded, Escape, closes on intro", phoneMenu],

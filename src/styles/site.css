@@ -145,14 +145,14 @@ main { position: relative; overflow-x: clip; }
   .js .hero-track { height: calc(var(--hero-min) + var(--hero-pin) * 100svh); }
   .js .hero-track > .hero { position: sticky; top: 0; }
 }
-/* The art: the poster (a still of the scene at rest, scripts/poster.mjs) and, over it, the three.js canvas, which
-   fades in once its first frame is drawn (.scene-on). The Arabic page sees the poster mirrored, as its scene is: the
-   chip sits on the reading side's start. Only the poster is pushed in (the light motion without the scene). */
+/* The art: the poster (frame 0 of the Blender film, art/export.py) and, over it, the film's canvas, which fades in
+   once its first frame is drawn (.scene-on). Poster and canvas both cover the hero centred, so frame 0 on the canvas
+   lands exactly on the poster. The film is not mirrored for Arabic (the shot is symmetric about the core). Only the
+   poster is pushed in (the light motion without the film). */
 .hero-art { position: absolute; inset: 0; z-index: -2; overflow: hidden; }
 .hero-poster { position: absolute; inset: 0; display: block; transform-origin: 50% 45%; }
 .hero-poster img { position: absolute; inset: 0; width: 100%; height: 100%; display: block;
-  object-fit: cover; object-position: 50% 40%; }
-[dir="rtl"] .hero-poster img { transform: scaleX(-1); }
+  object-fit: cover; object-position: 50% 50%; }
 .hero-scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; opacity: 0;
   transition: opacity var(--hero-scene-fade) var(--ease-out); }
 .hero-scene.on { opacity: 1; }
@@ -164,10 +164,9 @@ main { position: relative; overflow-x: clip; }
               linear-gradient(to bottom, transparent 84%, var(--ground-page)); }
 .hero-in { position: relative; z-index: 2; max-width: 1060px; text-align: center; display: grid; justify-items: center; }
 
-/* Headline: the real <h1> is HTML text, one span per word. Over the poster it is the visible headline (a pool of
-   night behind it keeps it readable over the board). With the scene running, the words are drawn on the board as
-   traces, so the visible spans step aside and the <h1> stays for screen readers and search; the subline and
-   button then sit at the foot of the first screen, under the headline's place on the board. */
+/* Headline: the real <h1> is HTML text, one span per word, always the visible headline (never drawn into the film).
+   A pool of night behind it keeps it readable over the frames. With motion it steps aside while the camera glides
+   and locks back in, word by word, at the reveal (Hero.tsx). */
 .hl { position: relative; margin: 0 0 22px; }
 .hl::before { content: ""; position: absolute; inset: -18% -12%; z-index: -1; pointer-events: none;
   background: radial-gradient(closest-side, color-mix(in srgb, var(--ground) 80%, transparent), transparent); }
@@ -176,12 +175,6 @@ main { position: relative; overflow-x: clip; }
 [dir="rtl"] .hl-text { letter-spacing: 0; line-height: 1.32; }
 .h-vis { display: block; }
 .h-vis .w { color: var(--ink); text-shadow: 0 0 .4em var(--glow); }
-.scene-on .hl { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); }
-.scene-on .hero-in { position: absolute; inset-inline: var(--gutter); margin-inline: auto;
-  inset-block-start: calc(min(100svh, 100%) - var(--hero-foot)); transform: translateY(-100%); }
-.scene-on .hero-in::before { content: ""; position: absolute; inset: -30px -60px; z-index: -1; pointer-events: none;
-  background: radial-gradient(closest-side, color-mix(in srgb, var(--ground) 82%, transparent), transparent); }
-.scene-on .slogan { margin-block-end: var(--space-5); }
 
 .slogan { font-size: var(--t-md); font-weight: 300; color: var(--ink-soft); margin: 0 0 38px; }
 /* The scroll cue sits at the foot of the first screen (not of the hero, which can be taller), on its own
@@ -212,15 +205,12 @@ main { position: relative; overflow-x: clip; }
   animation: guide-pulse var(--hero-guide-cycle) ease-in-out infinite; }
 @keyframes guide-pulse { 0% { transform: translateY(-8px); opacity: 0; } 25% { opacity: 1; } 80%, 100% { transform: translateY(22px); opacity: 0; } }
 
-/* Boot state: painted before any JS runs (the shell adds .js before paint), so with motion allowed the words
-   start unlit and the subline/button/cue hidden, as the story's first frame, instead of flashing lit and going
-   dark. With reduced motion or JS off the hero paints in its final state. If the scene never starts (script
-   failed), the fallback animation shows everything (and drops the guide) after --hero-fallback. */
+/* Boot state: painted before any JS runs (the shell adds .js before paint). The film's first frame has the headline,
+   subline and button on screen, so they paint shown; only the cue waits (the scroll guide stands in for it at the
+   top). With reduced motion or JS off the hero paints in its final state. If the script never runs, the fallback
+   animation shows the cue (and drops the guide) after --hero-fallback. */
 @media (prefers-reduced-motion: no-preference) {
-  .js .hero.boot .h-vis .w,
-  .js .hero.boot .slogan, .js .hero.boot .hero-in > .btn, .js .hero.boot .cue {
-    opacity: 0; animation: hero-fallback 0s var(--hero-fallback) forwards; }
-  .js .hero.boot .slogan, .js .hero.boot .hero-in > .btn, .js .hero.boot .cue { transform: translateY(10px); }
+  .js .hero.boot .cue { opacity: 0; transform: translateY(10px); animation: hero-fallback 0s var(--hero-fallback) forwards; }
   .js .hero.boot .guide { animation: hero-fallback-out 0s var(--hero-fallback) forwards; }
 }
 @keyframes hero-fallback { to { opacity: 1; transform: none; } }
