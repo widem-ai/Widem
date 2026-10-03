@@ -28,8 +28,8 @@ try {
   // The frame the current scroll position should show: the pin starts at 0 and lasts 3 viewport heights.
   const expectedFrame = () => page.evaluate(`Math.min(${HERO_FRAMES} - 1, Math.floor(Math.min(1, Math.max(0, scrollY / (3 * innerHeight))) * ${HERO_FRAMES}))`);
   const scrollTo = async (y) => { await page.evaluate(`window.scrollTo(0, ${y})`); await page.wait(400); };
-  // While pinned, GSAP wraps the hero in a .pin-spacer that holds the whole scrub length.
-  const pinEnd = await page.evaluate(`(() => { const s = document.querySelector("[data-section=hero]"); const box = s.closest(".pin-spacer") ?? s; return box.offsetTop + box.offsetHeight; })()`);
+  // The hero wrapper reserves the whole scrub length (plus the hero's own screen) from the first render.
+  const pinEnd = await page.evaluate(`(() => { const w = document.querySelector("[data-hero-scroll]"); return w.offsetTop + w.offsetHeight; })()`);
 
   expect(await frame() === 0, "hero: not on frame 0 at the top");
   await scrollTo(pinEnd * 0.9);
@@ -71,24 +71,31 @@ try {
   // Review focus 4: reload mid-hero restores the matching frame
   await page.emulate({ width: 1440, height: 900 });
   await page.goto(`http://127.0.0.1:${port}/Widem/`); await page.wait(800);
-  // A real reload, not a fresh goto: only a reload restores the scroll position. Chrome restores only about half
-  // the time here (the pin spacer appears after the async manifest load; measured 5 of 10), so up to 4 tries; a reload that lands at the top fails, never passes.
+  // A real reload, not a fresh goto: only a reload restores the scroll position. No retries: the wrapper
+  // reserves the page height at first render, so restore must work every time.
   // Two positions: mid-scrub (frame 1 of the placeholder, so a reload that always shows the last frame
   // fails) and past the scrub end (the last frame).
   for (const [label, target] of [["mid-scrub", 1.5 * 900], ["near the end", pinEnd * 0.9]]) {
-    let y = 0, navType = "";
-    for (let attempt = 0; attempt < 4 && y === 0; attempt++) {
-      await scrollTo(target); await page.wait(500);
-      await page.reload(); await page.wait(1200);
-      y = await page.evaluate(`window.scrollY`);
-      navType = await page.evaluate(`performance.getEntriesByType("navigation")[0]?.type`);
-    }
+    await scrollTo(target); await page.wait(500);
+    await page.reload(); await page.wait(1200);
+    const y = await page.evaluate(`window.scrollY`);
+    const navType = await page.evaluate(`performance.getEntriesByType("navigation")[0]?.type`);
     expect(navType === "reload", `hero: reload check (${label}) did not reload (navigation type ${navType})`);
-    expect(y > 0, `hero: scroll position not restored after reload (${label}, 4 tries)`);
+    expect(y > 0, `hero: scroll position not restored after reload (${label})`);
     const [rf, rw] = [await frame(), await expectedFrame()];
     expect(y > 0 && rf === rw, `hero: after reload ${label} at y=${y} frame ${rf}, scroll says ${rw}`);
     if (label === "mid-scrub") expect(rf === 1, `hero: mid-scrub reload landed on frame ${rf}, expected 1`);
   }
+  // Slow network: the manifest arrives well after the load event, yet the page must already be tall
+  // enough for the browser to restore the scroll position (the wrapper reserves it at first render).
+  await page.send("Network.enable");
+  await page.send("Network.emulateNetworkConditions", { offline: false, latency: 700, downloadThroughput: -1, uploadThroughput: -1 });
+  await scrollTo(1.5 * 900); await page.wait(500);
+  await page.reload(); await page.wait(4000);
+  const slowY = await page.evaluate(`window.scrollY`);
+  expect(slowY > 0, "hero: scroll position not restored after a reload on a slow network");
+  expect(slowY > 0 && await frame() === await expectedFrame(), `hero: slow-network reload at y=${slowY} frame ${await frame()}, scroll says ${await expectedFrame()}`);
+  await page.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
   expect(page.errors.length === 0, `console errors: ${page.errors.join(" | ")}`);
   // Reduced motion: poster only, no pin, page reads top to bottom (Task 4)
   await page.emulate({ width: 1440, height: 900, reduce: true });
