@@ -85,6 +85,12 @@ export async function launch() {
       await send("Page.navigate", { url });
       await Promise.race([loaded, sleep(10000)]);
     },
+    /** A real reload (navigation type "reload", so the browser restores the scroll position). */
+    async reload() {
+      const loaded = new Promise((res) => on("Page.loadEventFired", res));
+      await send("Page.reload", {});
+      await Promise.race([loaded, sleep(10000)]);
+    },
     /** Evaluate an expression (string) in the page; returns its JSON value. */
     async evaluate(expr) {
       const r = await send("Runtime.evaluate", { expression: expr, returnByValue: true, awaitPromise: true });

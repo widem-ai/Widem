@@ -8,7 +8,11 @@ export function Hero() {
   const ref = useRef<HTMLElement>(null);
   const [manifest, setManifest] = useState<Manifest | null>(null);
   const [progress, setProgress] = useState(0);
-  useEffect(() => { loadManifest(BASE, "hero").then(setManifest, () => setManifest(null)); }, []);
+  useEffect(() => { loadManifest(BASE, "hero").then(setManifest, (e: unknown) => {
+      // Loud on purpose: a broken manifest must show up in the console (and the check's error gate).
+      console.error("hero: manifest failed to load:", e);
+      setManifest(null);
+    }); }, []);
   useScrub(ref, setProgress, { enabled: manifest !== null, length: 3 });
   const base = `${BASE}film/hero/`;
   return (

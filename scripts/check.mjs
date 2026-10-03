@@ -62,20 +62,28 @@ try {
   await scrollTo(0); await page.wait(400);
   await page.emulate({ width: 390, height: 844 });
   await page.wait(600);
-  const buf = await page.evaluate(`(() => { const c = document.querySelector("canvas[data-film=hero]"); return [c.width, c.clientWidth, Number(c.dataset.frame)]; })()`);
+  const buf = await page.evaluate(`(() => { const c = document.querySelector("canvas[data-film=hero]"); return c ? [c.width, c.clientWidth, Number(c.dataset.frame)] : [-1, 0, -1]; })()`);
   expect(buf[0] === buf[1], `hero: canvas buffer ${buf[0]}px wide in a ${buf[1]}px box after a resize on frame ${buf[2]} (stretched frame)`);
   // The box can change with no scroll or viewport event (layout shift, font swap): the frame must refit.
-  await page.evaluate(`document.querySelector("canvas[data-film=hero]").style.width = "50%"`); await page.wait(300);
-  const half = await page.evaluate(`(() => { const c = document.querySelector("canvas[data-film=hero]"); return [c.width, c.clientWidth]; })()`);
+  await page.evaluate(`document.querySelector("canvas[data-film=hero]")?.style.setProperty("width", "50%")`); await page.wait(300);
+  const half = await page.evaluate(`(() => { const c = document.querySelector("canvas[data-film=hero]"); return c ? [c.width, c.clientWidth] : [-1, 0]; })()`);
   expect(half[0] === half[1], `hero: canvas buffer ${half[0]}px wide in a ${half[1]}px box after a box change (stretched frame)`);
   // Review focus 4: reload mid-hero restores the matching frame
   await page.emulate({ width: 1440, height: 900 });
   await page.goto(`http://127.0.0.1:${port}/Widem/`); await page.wait(800);
-  await scrollTo(pinEnd * 0.9);
-  await page.goto(`http://127.0.0.1:${port}/Widem/`); await page.wait(1200);
-  const y = await page.evaluate(`window.scrollY`);
-  expect(y === 0 || await frame() > 0, "hero: after reload mid-hero the frame does not match the scroll position");
-  expect(await frame() === await expectedFrame(), `hero: after reload at y=${y} frame ${await frame()}, scroll says ${await expectedFrame()}`);
+  // A real reload, not a fresh goto: only a reload restores the scroll position. Chrome occasionally
+  // does not restore (1 in 7 measured), so one retry; a reload that lands at the top fails, never passes.
+  let y = 0, navType = "";
+  for (let attempt = 0; attempt < 2 && y === 0; attempt++) {
+    await scrollTo(pinEnd * 0.9); await page.wait(500);
+    await page.reload(); await page.wait(1200);
+    y = await page.evaluate(`window.scrollY`);
+    navType = await page.evaluate(`performance.getEntriesByType("navigation")[0]?.type`);
+  }
+  expect(navType === "reload", `hero: reload check did not reload (navigation type ${navType})`);
+  expect(y > 0, "hero: scroll position not restored after reload (twice)");
+  const [rf, rw] = [await frame(), await expectedFrame()];
+  expect(y > 0 && rf === rw, `hero: after reload at y=${y} frame ${rf}, scroll says ${rw}`);
   expect(page.errors.length === 0, `console errors: ${page.errors.join(" | ")}`);
 } finally {
   await page.close();
