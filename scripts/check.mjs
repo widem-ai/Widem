@@ -71,20 +71,43 @@ try {
   // Review focus 4: reload mid-hero restores the matching frame
   await page.emulate({ width: 1440, height: 900 });
   await page.goto(`http://127.0.0.1:${port}/Widem/`); await page.wait(800);
-  // A real reload, not a fresh goto: only a reload restores the scroll position. Chrome occasionally
-  // does not restore (1 in 7 measured), so one retry; a reload that lands at the top fails, never passes.
-  let y = 0, navType = "";
-  for (let attempt = 0; attempt < 2 && y === 0; attempt++) {
-    await scrollTo(pinEnd * 0.9); await page.wait(500);
-    await page.reload(); await page.wait(1200);
-    y = await page.evaluate(`window.scrollY`);
-    navType = await page.evaluate(`performance.getEntriesByType("navigation")[0]?.type`);
+  // A real reload, not a fresh goto: only a reload restores the scroll position. Chrome restores only about half
+  // the time here (the pin spacer appears after the async manifest load; measured 5 of 10), so up to 4 tries; a reload that lands at the top fails, never passes.
+  // Two positions: mid-scrub (frame 1 of the placeholder, so a reload that always shows the last frame
+  // fails) and past the scrub end (the last frame).
+  for (const [label, target] of [["mid-scrub", 1.5 * 900], ["near the end", pinEnd * 0.9]]) {
+    let y = 0, navType = "";
+    for (let attempt = 0; attempt < 4 && y === 0; attempt++) {
+      await scrollTo(target); await page.wait(500);
+      await page.reload(); await page.wait(1200);
+      y = await page.evaluate(`window.scrollY`);
+      navType = await page.evaluate(`performance.getEntriesByType("navigation")[0]?.type`);
+    }
+    expect(navType === "reload", `hero: reload check (${label}) did not reload (navigation type ${navType})`);
+    expect(y > 0, `hero: scroll position not restored after reload (${label}, 4 tries)`);
+    const [rf, rw] = [await frame(), await expectedFrame()];
+    expect(y > 0 && rf === rw, `hero: after reload ${label} at y=${y} frame ${rf}, scroll says ${rw}`);
+    if (label === "mid-scrub") expect(rf === 1, `hero: mid-scrub reload landed on frame ${rf}, expected 1`);
   }
-  expect(navType === "reload", `hero: reload check did not reload (navigation type ${navType})`);
-  expect(y > 0, "hero: scroll position not restored after reload (twice)");
-  const [rf, rw] = [await frame(), await expectedFrame()];
-  expect(y > 0 && rf === rw, `hero: after reload at y=${y} frame ${rf}, scroll says ${rw}`);
   expect(page.errors.length === 0, `console errors: ${page.errors.join(" | ")}`);
+  // Reduced motion: poster only, no pin, page reads top to bottom (Task 4)
+  await page.emulate({ width: 1440, height: 900, reduce: true });
+  await page.goto(`http://127.0.0.1:${port}/Widem/`); await page.wait(800);
+  expect(await page.evaluate(`!!document.querySelector("img[data-poster=hero]") && !document.querySelector("canvas[data-film=hero]")`), "reduced motion: canvas still drawn or poster missing");
+  expect(await page.evaluate(`!document.querySelector(".pin-spacer")`), "reduced motion: hero still pinned");
+  // Review focus 3: frames fail to load, the poster stays visible and the canvas stays hidden
+  await page.emulate({ width: 1440, height: 900, reduce: false });
+  await page.send("Network.enable");
+  await page.send("Network.setBlockedURLs", { urls: ["*frame-*"] });
+  await page.goto(`http://127.0.0.1:${port}/Widem/`); await page.wait(1000);
+  // Prove the block works on the real frame URLs (PNG names) before trusting what it implies.
+  const blocked = await page.evaluate(`fetch("/Widem/film/hero/frame-0001.png", { cache: "no-store" }).then(() => false, () => true)`);
+  expect(blocked, "failed frames: the block pattern did not block frame-0001.png, so this check proves nothing");
+  const posterVisible = await page.evaluate(`(() => { const i = document.querySelector("img[data-poster=hero]"); return !!i && i.complete && i.naturalWidth > 0; })()`);
+  const canvasHidden = await page.evaluate(`getComputedStyle(document.querySelector("canvas[data-film=hero]")).opacity === "0"`);
+  expect(posterVisible && canvasHidden, `failed frames: poster visible ${posterVisible}, canvas hidden ${canvasHidden}`);
+  await page.send("Network.setBlockedURLs", { urls: [] });
+  page.errors.length = 0; // blocked frames log load errors on purpose
 } finally {
   await page.close();
   server.close();
