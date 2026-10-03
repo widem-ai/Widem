@@ -12,6 +12,9 @@ Lives at `/Widem/` (GitHub Pages), Arabic at `/Widem/ar/`.
 - `src/film/` the hero film (added in later tasks). `public/film/` its frames and posters.
 - `src/site.ts` base path, languages, direction. No visible strings.
 - `scripts/` `check.mjs` (browser check), `serve.mjs` (serves `dist/` at `/Widem/`), `lib/cdp.mjs` (Chrome driver).
+  `build-sequence.mjs <id> <framesDir> [--budget-kb N]` copies Blender's `frame-####.webp` into `public/film/<id>/`,
+  writes its manifest (poster = frame 1) and fails over the size budget (hero: 6000 KB). Frames are rendered by
+  `scene.py --beat 1 --frames N --out DIR --res W` in the vault's `rebuild-zero/blender/`, never over the approved stills.
 
 ## The handoff rule
 Each section ends on an object or light (`handoffOut`); the next must start on the same one (`handoffIn`). The film starts on

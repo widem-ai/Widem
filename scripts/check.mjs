@@ -20,7 +20,14 @@ try {
   }
 
   // Hero: pinned, scroll-scrubbed frame sequence (Task 3).
-  const HERO_FRAMES = JSON.parse(readFileSync(new URL("../public/film/hero/manifest.json", import.meta.url), "utf8")).frames;
+  // The frame count comes from the manifest actually served (the build output), never a constant.
+  const HERO = JSON.parse(readFileSync(new URL("../dist/film/hero/manifest.json", import.meta.url), "utf8"));
+  const HERO_FRAMES = HERO.frames;
+  expect(Number.isInteger(HERO_FRAMES) && HERO_FRAMES > 1, `hero: built manifest has ${HERO_FRAMES} frames`);
+  // Mid-scrub probe: the centre of the middle frame at 1440x900, so a restore off by a few pixels still
+  // names the same frame, and a reload that always shows the first or last frame fails.
+  const MID_FRAME = Math.floor(HERO_FRAMES / 2);
+  const MID_Y = Math.floor(((MID_FRAME + 0.5) / HERO_FRAMES) * 3 * 900);
   await page.emulate({ width: 1440, height: 900 });
   await page.goto(`http://127.0.0.1:${port}/Widem/`);
   await page.wait(800);
@@ -73,9 +80,9 @@ try {
   await page.goto(`http://127.0.0.1:${port}/Widem/`); await page.wait(800);
   // A real reload, not a fresh goto: only a reload restores the scroll position. No retries: the wrapper
   // reserves the page height at first render, so restore must work every time.
-  // Two positions: mid-scrub (frame 1 of the placeholder, so a reload that always shows the last frame
+  // Two positions: mid-scrub (the middle frame, so a reload that always shows the first or last frame
   // fails) and past the scrub end (the last frame).
-  for (const [label, target] of [["mid-scrub", 1.5 * 900], ["near the end", pinEnd * 0.9]]) {
+  for (const [label, target] of [["mid-scrub", MID_Y], ["near the end", pinEnd * 0.9]]) {
     await scrollTo(target); await page.wait(500);
     await page.reload(); await page.wait(1200);
     const y = await page.evaluate(`window.scrollY`);
@@ -84,13 +91,13 @@ try {
     expect(y > 0, `hero: scroll position not restored after reload (${label})`);
     const [rf, rw] = [await frame(), await expectedFrame()];
     expect(y > 0 && rf === rw, `hero: after reload ${label} at y=${y} frame ${rf}, scroll says ${rw}`);
-    if (label === "mid-scrub") expect(rf === 1, `hero: mid-scrub reload landed on frame ${rf}, expected 1`);
+    if (label === "mid-scrub") expect(rf === MID_FRAME, `hero: mid-scrub reload landed on frame ${rf}, expected ${MID_FRAME}`);
   }
   // Slow network: the manifest arrives well after the load event, yet the page must already be tall
   // enough for the browser to restore the scroll position (the wrapper reserves it at first render).
   await page.send("Network.enable");
   await page.send("Network.emulateNetworkConditions", { offline: false, latency: 700, downloadThroughput: -1, uploadThroughput: -1 });
-  await scrollTo(1.5 * 900); await page.wait(500);
+  await scrollTo(MID_Y); await page.wait(500);
   await page.reload(); await page.wait(4000);
   const slowY = await page.evaluate(`window.scrollY`);
   expect(slowY > 0, "hero: scroll position not restored after a reload on a slow network");
@@ -102,18 +109,28 @@ try {
   await page.goto(`http://127.0.0.1:${port}/Widem/`); await page.wait(800);
   expect(await page.evaluate(`!!document.querySelector("img[data-poster=hero]") && !document.querySelector("canvas[data-film=hero]")`), "reduced motion: canvas still drawn or poster missing");
   expect(await page.evaluate(`!document.querySelector(".pin-spacer")`), "reduced motion: hero still pinned");
-  // Review focus 3: frames fail to load, the poster stays visible and the canvas stays hidden
+  // Review focus 3: frames fail to load, the poster stays visible and the canvas stays hidden.
+  // The poster is frame 1 (it arrives with the first paint), so every other frame is blocked and the page
+  // is reloaded mid-scrub, where the frame the scroll asks for is one of the blocked ones.
   await page.emulate({ width: 1440, height: 900, reduce: false });
   await page.send("Network.enable");
-  await page.send("Network.setBlockedURLs", { urls: ["*frame-*"] });
-  await page.goto(`http://127.0.0.1:${port}/Widem/`); await page.wait(1000);
-  // Prove the block works on the real frame URLs (PNG names) before trusting what it implies.
-  const blocked = await page.evaluate(`fetch("/Widem/film/hero/frame-0001.png", { cache: "no-store" }).then(() => false, () => true)`);
-  expect(blocked, "failed frames: the block pattern did not block frame-0001.png, so this check proves nothing");
+  await page.send("Network.setCacheDisabled", { cacheDisabled: true });
+  const frameName = (i) => HERO.pattern.replace("{n}", String(i + 1).padStart(4, "0"));
+  await page.send("Network.setBlockedURLs", { urls: Array.from({ length: HERO_FRAMES - 1 }, (_, i) => `*/film/hero/${frameName(i + 1)}`) });
+  await page.goto(`http://127.0.0.1:${port}/Widem/`); await page.wait(800);
+  await scrollTo(MID_Y); await page.wait(300);
+  await page.reload(); await page.wait(1500);
+  expect(await page.evaluate(`window.scrollY`) > 0, "failed frames: scroll position not restored, so the wanted frame may be the poster");
+  // Prove the block works on the real frame URLs and spares the poster before trusting what it implies.
+  const fetchFails = (name) => page.evaluate(`fetch("/Widem/film/hero/${name}", { cache: "no-store" }).then(() => false, () => true)`);
+  const blocked = await fetchFails(frameName(MID_FRAME)) && await fetchFails(frameName(HERO_FRAMES - 1));
+  expect(blocked, `failed frames: the block did not stop ${frameName(MID_FRAME)}, so this check proves nothing`);
+  expect(!(await fetchFails(HERO.poster)), `failed frames: the block also stopped the poster ${HERO.poster}`);
   const posterVisible = await page.evaluate(`(() => { const i = document.querySelector("img[data-poster=hero]"); return !!i && i.complete && i.naturalWidth > 0; })()`);
   const canvasHidden = await page.evaluate(`getComputedStyle(document.querySelector("canvas[data-film=hero]")).opacity === "0"`);
   expect(posterVisible && canvasHidden, `failed frames: poster visible ${posterVisible}, canvas hidden ${canvasHidden}`);
   await page.send("Network.setBlockedURLs", { urls: [] });
+  await page.send("Network.setCacheDisabled", { cacheDisabled: false });
   page.errors.length = 0; // blocked frames log load errors on purpose
 
   // Shell (Task 5): language, pill nav after the hero, hero line on the text side. Review focus 5 (Arabic).

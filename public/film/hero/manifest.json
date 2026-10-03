@@ -1,1 +1,8 @@
-{ "id": "hero", "frames": 3, "pattern": "frame-{n}.png", "poster": "poster.png", "width": 1920, "height": 1080 }
+{
+  "id": "hero",
+  "frames": 48,
+  "pattern": "frame-{n}.webp",
+  "poster": "frame-0001.webp",
+  "width": 1920,
+  "height": 1080
+}

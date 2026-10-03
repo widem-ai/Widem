@@ -11,14 +11,31 @@ export function FrameCanvas({ manifest, base, progress }: { manifest: Manifest; 
   // The frame the scroll position asks for right now; a late image load may only draw this one.
   const wanted = useRef(0);
 
+  // The latest progress, read when loading starts. The scrub reports a restored scroll position one
+  // synchronous render after this canvas mounts, so loading waits one task for it.
+  const latest = useRef(progress);
+  latest.current = progress;
+
   useEffect(() => {
-    images.current = Array.from({ length: manifest.frames }, (_, i) => {
-      const img = new Image();
-      img.decoding = "async";
-      img.src = frameUrl(base, manifest, i);
-      img.onerror = () => { images.current[i] = null; };
-      return img;
-    });
+    images.current = [];
+    const start = setTimeout(() => {
+      // Request the frame the scroll position needs first, then outward from it: on a slow network, index
+      // order would leave a mid-page reload waiting behind every earlier frame.
+      const first = frameAt(latest.current, manifest.frames);
+      const order = Array.from({ length: manifest.frames }, (_, i) => i).sort((a, b) => Math.abs(a - first) - Math.abs(b - first) || a - b);
+      const list: (HTMLImageElement | null)[] = new Array(manifest.frames).fill(null);
+      images.current = list;
+      for (const i of order) {
+        const img = new Image();
+        img.decoding = "async";
+        if (i === first) img.fetchPriority = "high";
+        img.onload = () => draw(i); // draws only if it is still the frame the scroll asks for
+        img.onerror = () => { images.current[i] = null; };
+        img.src = frameUrl(base, manifest, i);
+        list[i] = img;
+      }
+    }, 0);
+    return () => clearTimeout(start);
   }, [manifest, base]);
 
   const draw = (index: number) => {
