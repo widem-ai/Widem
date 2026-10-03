@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { BASE } from "../site.ts";
+import { BASE, type Lang } from "../site.ts";
+import { contentFor } from "../content/index.ts";
 import { loadManifest, type Manifest } from "../film/frames.ts";
 import { FrameCanvas } from "../film/FrameCanvas.tsx";
 import { useScrub } from "../film/useScrub.ts";
@@ -9,7 +10,7 @@ import { useReducedMotion } from "../film/useReducedMotion.ts";
 // from the first render, so the page is tall enough for the browser to restore scroll before the manifest loads.
 const SCRUB_LENGTH = 3;
 
-export function Hero() {
+export function Hero({ lang }: { lang: Lang }) {
   const ref = useRef<HTMLElement>(null);
   const [manifest, setManifest] = useState<Manifest | null>(null);
   const [progress, setProgress] = useState(0);
@@ -26,6 +27,8 @@ export function Hero() {
       <section ref={ref} data-section="hero" className="relative h-screen overflow-hidden">
         {manifest && <img data-poster="hero" src={base + manifest.poster} alt="" className="absolute inset-0 h-full w-full object-cover" />}
         {manifest && !reduce && <FrameCanvas manifest={manifest} base={base} progress={progress} />}
+        {/* start-8 mirrors in Arabic: the line stays on the text side, away from the chip. */}
+        <p data-hero-line className="absolute bottom-16 start-8 max-w-[70vw] text-3xl font-semibold sm:max-w-md sm:text-4xl">{contentFor(lang).hero.line}</p>
       </section>
     </div>
   );

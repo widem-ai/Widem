@@ -115,6 +115,34 @@ try {
   expect(posterVisible && canvasHidden, `failed frames: poster visible ${posterVisible}, canvas hidden ${canvasHidden}`);
   await page.send("Network.setBlockedURLs", { urls: [] });
   page.errors.length = 0; // blocked frames log load errors on purpose
+
+  // Shell (Task 5): language, pill nav after the hero, hero line on the text side. Review focus 5 (Arabic).
+  for (const width of [1440, 390]) for (const [lang, path] of [["en", "/Widem/"], ["ar", "/Widem/ar/"]]) {
+    const tag = `${lang}@${width}`;
+    await page.emulate({ width, height: width === 390 ? 844 : 900 });
+    await page.goto(`http://127.0.0.1:${port}${path}`); await page.wait(800);
+    const navShown = () => page.evaluate(`(() => { const n = document.querySelector("nav[data-nav]"); return !!n && getComputedStyle(n).visibility !== "hidden" && getComputedStyle(n).opacity !== "0"; })()`);
+    expect(!(await navShown()), `${tag}: pill nav visible inside the hero`);
+    // The hero wrapper reserves the scrub length, so the hero ends at its bottom edge.
+    const end = await page.evaluate(`(() => { const w = document.querySelector("[data-hero-scroll]"); return w.offsetTop + w.offsetHeight; })()`);
+    await page.evaluate(`window.scrollTo(0, ${end + 50})`); await page.wait(600);
+    expect(await navShown(), `${tag}: pill nav missing after the hero`);
+    const box = await page.evaluate(`(() => { const n = document.querySelector("nav[data-nav]"); if (!n) return [0, 0, 1]; const rs = [n, ...n.querySelectorAll("a")].map((e) => e.getBoundingClientRect()); return [Math.min(...rs.map((r) => r.left)), Math.max(...rs.map((r) => r.right)), innerWidth]; })()`);
+    expect(box[0] >= 0 && box[1] <= box[2], `${tag}: nav or a link runs off screen (${box.map(Math.round)})`);
+    await page.evaluate(`window.scrollTo(0, 0)`); await page.wait(600);
+    expect(!(await navShown()), `${tag}: pill nav still visible after scrolling back into the hero`);
+    // The hero line sits on the text side (left in English, right in Arabic) and does not cross the middle
+    const line = await page.evaluate(`(() => { const r = document.querySelector("[data-hero-line]")?.getBoundingClientRect(); return r ? [r.left, r.right, innerWidth] : null; })()`);
+    expect(!!line, `${tag}: hero line missing`);
+    if (line) {
+      const side = line[0] + (line[1] - line[0]) / 2 < line[2] / 2 ? "left" : "right";
+      expect(side === (lang === "ar" ? "right" : "left"), `${tag}: hero line on the ${side}`);
+      expect(line[0] >= 0 && line[1] <= line[2], `${tag}: hero line runs off screen`);
+    }
+    expect(await page.evaluate(`document.documentElement.lang`) === lang, `${tag}: html lang is not ${lang}`);
+    expect(await page.evaluate(`document.querySelector("[data-hero-line]")?.textContent?.length > 0 && getComputedStyle(document.querySelector("[data-hero-line]")).direction`) === (lang === "ar" ? "rtl" : "ltr"), `${tag}: hero line direction`);
+  }
+  expect(page.errors.length === 0, `shell: console errors: ${page.errors.join(" | ")}`);
 } finally {
   await page.close();
   server.close();
