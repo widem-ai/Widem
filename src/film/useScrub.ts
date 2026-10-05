@@ -11,6 +11,8 @@ export function useScrub(
   onProgress: (p: number) => void,
   { enabled, length }: { enabled: boolean; length: number },
 ) {
+  // revertOnUpdate: when `enabled` flips (reduced motion toggled live) the old trigger and its pin are reverted;
+  // without it the pin stays alive under reduced motion and the next one is created over a stale spacer.
   useGSAP(() => {
     if (!enabled || !ref.current) return;
     const st = ScrollTrigger.create({
@@ -25,5 +27,5 @@ export function useScrub(
       onRefresh: (self) => onProgress(self.progress),
     });
     onProgress(st.progress);
-  }, { scope: ref, dependencies: [enabled, length] });
+  }, { scope: ref, dependencies: [enabled, length], revertOnUpdate: true });
 }

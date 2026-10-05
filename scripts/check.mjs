@@ -151,6 +151,74 @@ try {
   await page.send("Network.setCacheDisabled", { cacheDisabled: false });
   page.errors.length = 0; // blocked frames log load errors on purpose
 
+  // Task 8 QA frame fixes. A spy installed before the page's scripts records every frame request (img.src set)
+  // with its time, so retries and request order are measured, not inferred from the end state.
+  const { identifier: reqSpy } = await page.send("Page.addScriptToEvaluateOnNewDocument", { source: `(() => {
+    const d = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, "src"); window.__frameReq = [];
+    Object.defineProperty(HTMLImageElement.prototype, "src", { configurable: true, get: d.get,
+      set(v) { if (/\\/film\\/hero\\/frame-/.test(v)) window.__frameReq.push([v.split("/").pop(), performance.now()]); d.set.call(this, v); } });
+  })()` });
+  const requestsOf = (name) => page.evaluate(`window.__frameReq.filter(([n]) => n === "${name}").length`);
+  // I2: a frame that fails is retried a bounded number of times (1 + 2 retries with backoff), the nearest loaded
+  // frame is drawn meanwhile (never frame 0 when a neighbour exists), and it is asked for again when the scroll
+  // comes back to it. K is QA's repro frame.
+  {
+    const K = 22, yK = Math.floor(((K + 0.5) / HERO_FRAMES) * 3 * 900);
+    await page.emulate({ width: 1440, height: 900 });
+    await page.send("Network.setCacheDisabled", { cacheDisabled: true });
+    await page.send("Network.setBlockedURLs", { urls: [`*/film/hero/${frameName(K)}`] });
+    await page.goto(`http://127.0.0.1:${port}/Widem/`); await page.wait(3000);
+    expect(await fetchFails(frameName(K)), `retry: the block did not stop ${frameName(K)}, so this check proves nothing`);
+    const atMount = await requestsOf(frameName(K));
+    expect(atMount === 3, `retry: a failing frame was requested ${atMount} times in 3 s, expected 3 (1 + 2 retries, then stop)`);
+    await scrollTo(yK); await page.wait(3000); // longer than every backoff, so only a re-request on return can fix it
+    expect(await expectedFrame() === K, `retry: scroll asks for frame ${await expectedFrame()}, not ${K}, so this check proves nothing`);
+    const stale = await frame();
+    expect(Math.abs(stale - K) === 1, `retry: frame ${K} blocked, canvas shows ${stale}, expected a neighbour of ${K}`);
+    await page.send("Network.setBlockedURLs", { urls: [] });
+    await scrollTo(0); await scrollTo(yK); await page.wait(800);
+    expect(await frame() === K, `retry: frame ${K} unblocked, scrolled away and back, canvas shows ${await frame()}`);
+    await page.send("Network.setCacheDisabled", { cacheDisabled: false });
+    page.errors.length = 0; // the blocked frame logs load errors on purpose
+  }
+  // I4: on a slow network (QA's 50 KB/s, 300 ms latency) a jump to mid-scrub restarts the request order at the new
+  // frame and a near frame (within 1) is drawn within 1500 ms. One frame is at most 14.5 KB: about 0.3 s of transfer
+  // plus 0.3 s latency when it has the line to itself, so 1500 ms is 2.5x that; the old fixed order took 6.2 s.
+  {
+    await page.emulate({ width: 1440, height: 900 });
+    await page.send("Network.setCacheDisabled", { cacheDisabled: true });
+    await page.send("Network.emulateNetworkConditions", { offline: false, latency: 300, downloadThroughput: 50 * 1024, uploadThroughput: 50 * 1024 });
+    await page.goto(`http://127.0.0.1:${port}/Widem/`);
+    for (let t = 0; t < 100 && await frame() !== 0; t++) await page.wait(100); // the loader is running and frame 0 is drawn
+    const t0 = await page.evaluate(`(window.scrollTo(0, ${MID_Y}), performance.now())`);
+    let near = -1, ms = -1;
+    for (let t = 0; t < 60; t++) { await page.wait(100); const f = await frame(); if (Math.abs(f - MID_FRAME) <= 1) { near = f; ms = Math.round((await page.evaluate(`performance.now()`)) - t0); break; } }
+    const after = await page.evaluate(`window.__frameReq.filter(([, t]) => t >= ${t0}).map(([n]) => n)`);
+    expect(await expectedFrame() === MID_FRAME, `slow jump: scroll asks for frame ${await expectedFrame()}, not ${MID_FRAME}`);
+    expect(after[0] === frameNameOf(MID_FRAME), `slow jump: first request after the jump was ${after[0]}, expected ${frameNameOf(MID_FRAME)}`);
+    expect(near >= 0 && ms <= 1500, `slow jump: near frame ${near} after ${ms} ms (bound 1500 ms, -1 = not within 6 s)`);
+    console.log(`slow jump: frame ${near} drawn ${ms} ms after the jump`);
+    await page.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+    await page.send("Network.setCacheDisabled", { cacheDisabled: false });
+  }
+  await page.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: reqSpy });
+  // m1: flipping reduced motion while the page is open releases the pin; flipping back restores a visible, scrubbing hero.
+  {
+    const MID = 1350;
+    await page.emulate({ width: 1440, height: 900 });
+    await page.goto(`http://127.0.0.1:${port}/Widem/`); await page.wait(800);
+    await scrollTo(MID);
+    const setReduce = (on) => page.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: on ? "reduce" : "no-preference" }] });
+    await setReduce(true); await page.wait(600);
+    const off = await page.evaluate(`({ spacer: !!document.querySelector(".pin-spacer"), pos: getComputedStyle(document.querySelector("[data-section=hero]")).position })`);
+    expect(!off.spacer && off.pos !== "fixed", `reduced toggle on: pin-spacer ${off.spacer}, hero position ${off.pos}`);
+    await setReduce(false); await page.wait(600);
+    await scrollTo(MID); await page.wait(400);
+    const heroTop = await page.evaluate(`document.querySelector("[data-section=hero]").getBoundingClientRect().top`);
+    const [tf, tw] = [await frame(), await expectedFrame()];
+    expect(Math.abs(heroTop) < 2 && tf === tw && tw > 0, `reduced toggle off: hero top ${heroTop}, frame ${tf}, scroll says ${tw}`);
+  }
+
   // Shell (Task 5): language, pill nav after the hero, hero line on the text side. Review focus 5 (Arabic).
   for (const width of [1440, 390]) for (const [lang, path] of [["en", "/Widem/"], ["ar", "/Widem/ar/"]]) {
     const tag = `${lang}@${width}`;
