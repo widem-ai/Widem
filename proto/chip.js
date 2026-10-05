@@ -9,7 +9,12 @@ import { N8AOPostPass } from "n8ao";
 const t0 = performance.now();
 const stats = (window.__proto = { firstFrameMs: null, error: null, frames: 0 });
 const canvas = document.getElementById("chip");
-const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+// Phone-test switches (combinable): ?fps shows a readout and keeps the turn running; ?ao=0 ?bloom=0 ?msaa=0 ?dpr=1|1.5|2
+const Q = new URLSearchParams(location.search);
+const FPS = Q.has("fps");
+const FX = { ao: Q.get("ao") !== "0", bloom: Q.get("bloom") !== "0", msaa: Q.get("msaa") !== "0" };
+const DPR_Q = Number(Q.get("dpr"));
+const reduce = !FPS && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const forceFail = new URLSearchParams(location.search).has("nowebgl"); // planted break: fallback path
 const fail = (e) => { stats.error = String(e?.message ?? e); canvas.remove(); };
 
@@ -121,7 +126,7 @@ function buildChip() {
 
 // ------------------------------------------------------------------ scene
 function start() {
-  const dpr = Math.min(window.devicePixelRatio || 1, 2); // DPR cap 2
+  const dpr = [1, 1.5, 2].includes(DPR_Q) ? DPR_Q : Math.min(window.devicePixelRatio || 1, 2); // DPR cap 2, or ?dpr=
   renderer.setPixelRatio(dpr);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NoToneMapping; // tone mapping happens in the effect pass
@@ -167,15 +172,16 @@ function start() {
   const CAM_DIR = new THREE.Vector3(-0.5605, -0.1704, -0.8104);
   const H_FOV = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(16.07) / 2) * (16 / 9));
 
-  const composer = new EffectComposer(renderer, { frameBufferType: THREE.HalfFloatType, multisampling: 4 });
+  const composer = new EffectComposer(renderer, { frameBufferType: THREE.HalfFloatType, multisampling: FX.msaa ? 4 : 0 });
   composer.addPass(new RenderPass(scene, cam));
   const ao = new N8AOPostPass(scene, cam, 1, 1);
   Object.assign(ao.configuration, { aoRadius: 0.35, distanceFalloff: 0.4, intensity: 2.2, halfRes: true, gammaCorrection: false });
   ao.setQualityMode("Low");
-  composer.addPass(ao);
-  composer.addPass(new EffectPass(cam,
-    new BloomEffect({ luminanceThreshold: 1.0, luminanceSmoothing: 0.05, intensity: 0.45, mipmapBlur: true, radius: 0.6 }),
-    new ToneMappingEffect({ mode: ToneMappingMode.AGX })));
+  if (FX.ao) composer.addPass(ao);
+  const effects = [new ToneMappingEffect({ mode: ToneMappingMode.AGX })];
+  if (FX.bloom) effects.unshift(new BloomEffect({ luminanceThreshold: 1.0, luminanceSmoothing: 0.05, intensity: 0.45, mipmapBlur: true, radius: 0.6 }));
+  composer.addPass(new EffectPass(cam, ...effects));
+  const meter = FPS ? makeMeter(dpr) : null;
 
   function resize() {
     const w = canvas.clientWidth, h = canvas.clientHeight;
@@ -203,6 +209,7 @@ function start() {
     scene.environmentIntensity = 0.25 + 0.75 * k;
     chip.rotation.y = reduce ? 0 : THREE.MathUtils.degToRad(10 * Math.sin(t * 0.18));
     composer.render();
+    meter?.tick(now);
     stats.frames++;
     if (stats.firstFrameMs === null) { stats.firstFrameMs = Math.round(performance.now() - t0); canvas.classList.add("on"); }
   };
@@ -212,6 +219,34 @@ function start() {
   new IntersectionObserver(([e]) => { visible = e.isIntersecting; kick(); }).observe(canvas);
   if (reduce) draw(performance.now()); else kick();
   stats.setTime = (sec) => { begin = performance.now() - sec * 1000; draw(performance.now()); };
+}
+
+// ------------------------------------------------------------------ ?fps readout
+function makeMeter(dpr) {
+  const el = document.createElement("div"); el.id = "fps";
+  el.style.cssText = "position:fixed;left:8px;top:8px;z-index:9;padding:6px 8px;background:rgba(0,0,0,.72);color:#e8e8e8;" +
+    "font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;white-space:pre;pointer-events:none;border-radius:4px";
+  document.body.appendChild(el);
+  let gpu = "unknown";
+  try { const gl = renderer.getContext(), ext = gl.getExtension("WEBGL_debug_renderer_info");
+    if (ext) gpu = String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)).slice(0, 48); } catch { /* masked */ }
+  const on = Object.entries(FX).map(([k, v]) => `${k} ${v ? "on" : "off"}`).join(", ");
+  const samples = []; let last = 0, shown = 0;
+  return { tick(now) {
+    if (last) samples.push([now, now - last]);
+    last = now;
+    while (samples.length && now - samples[0][0] > 2000) samples.shift(); // last 2 s
+    if (now - shown < 500 || samples.length < 2) return;
+    shown = now;
+    const dts = samples.map((x) => x[1]).sort((a, b) => a - b);
+    const avg = (1000 * dts.length) / dts.reduce((a, b) => a + b, 0);
+    const low = dts[Math.min(dts.length - 1, Math.floor(dts.length * 0.99))]; // 1% low = 99th percentile frame time
+    el.textContent = `avg ${avg.toFixed(1)} fps (2 s)
+1% low ${low.toFixed(1)} ms
+dpr ${dpr}  ${innerWidth}x${innerHeight}
+${on}
+${gpu}`;
+  } };
 }
 
 // Start last: the texture helpers above are const arrow functions and must exist first.
