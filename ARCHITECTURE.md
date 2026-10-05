@@ -11,6 +11,8 @@ Lives at `/Widem/` (GitHub Pages), Arabic at `/Widem/ar/`.
 - `src/sections/` the eight sections and `registry.ts`, the single source of page order and handoffs.
 - `src/film/` the hero film (added in later tasks). `public/film/` its frames and posters.
 - `src/site.ts` base path, languages, direction. No visible strings.
+- `spike/` (branch `spike-live-chip` only) an isolated three.js test page for the live chip; not built or checked with the site.
+  Build: `npx vite build --config spike/vite.config.mjs`; shoot: `node spike/shoot.mjs <outDir>`. `three` is a dependency for it only.
 - `scripts/` `check.mjs` (browser check), `serve.mjs` (serves `dist/` at `/Widem/`), `lib/cdp.mjs` (Chrome driver).
   `build-sequence.mjs <id> <framesDir> [--budget-kb N]` copies Blender's `frame-####.webp` into `public/film/<id>/`,
   writes its manifest (poster = frame 1) and fails over the size budget (hero: 6000 KB). Frames are rendered by
