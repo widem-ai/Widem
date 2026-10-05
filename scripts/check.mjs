@@ -184,8 +184,9 @@ try {
   // I4: on a slow network (QA's 50 KB/s, 300 ms latency) a jump to mid-scrub restarts the request order at the new
   // frame and a near frame (within 1) is drawn within 1000 ms. One frame is at most 14.5 KB: about 0.3 s of transfer
   // plus 0.3 s latency when it has the line to itself (measured 632-640 ms over 9 runs; the throttle is deterministic),
-  // plus up to 0.1 s of polling. Each half of the fix is worth more than the margin: without cancelling the old
-  // requests it took 1159 ms, without giving the wanted frame the line alone 1464 ms, with the old fixed order 6.2 s.
+  // plus up to 0.1 s of polling. Without giving the wanted frame the line alone it took 1452-1464 ms, with the old
+  // fixed order 6.2 s (both fail here). Without cancelling the old requests it took 646 or 1159 ms depending on what
+  // was in flight at the jump, so the cancel is NOT reliably guarded by this check.
   {
     await page.emulate({ width: 1440, height: 900 });
     await page.send("Network.setCacheDisabled", { cacheDisabled: true });
