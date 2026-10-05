@@ -59,13 +59,6 @@ const floorTex = () => canvasTex(2048, 2048, (g, w, h) => {
   r.addColorStop(0, "rgb(100,102,102)"); r.addColorStop(0.35, "rgb(48,50,50)"); r.addColorStop(0.7, "rgb(10,11,11)"); r.addColorStop(1, "rgb(2,4,3)");
   g.fillStyle = r; g.fillRect(0, 0, w, h);
 });
-const hazeTex = () => canvasTex(512, 288, (g, w, h) => {
-  // Screen-space background: near-black with the haze glow up and to the right (Cycles had a volume here).
-  g.fillStyle = "#020403"; g.fillRect(0, 0, w, h);
-  const r = g.createRadialGradient(w * 0.8, h * 0.2, 0, w * 0.8, h * 0.2, w * 0.55);
-  r.addColorStop(0, "rgba(40,43,43,1)"); r.addColorStop(0.5, "rgba(16,19,18,1)"); r.addColorStop(1, "rgba(2,4,3,0)");
-  g.fillStyle = r; g.fillRect(0, 0, w, h);
-});
 
 function rrectShape(s, r) {
   const sh = new THREE.Shape(), h = s / 2;
@@ -79,8 +72,12 @@ function rrectShape(s, r) {
 function buildChip() {
   const chip = new THREE.Group();
   const gold = new THREE.MeshPhysicalMaterial({ color: 0xe8b03a, metalness: 1, roughness: 0.15 });
+  // Lead tops face up like the lid, so with the lid's black sky they mirrored black. Rougher leads let the key spot's
+  // lobe reach the camera (Cycles' brushed gold did the same) without putting light back into the lid's mirror band.
+  const leadGold = gold.clone(); leadGold.roughness = 0.38;
   const ceramic = new THREE.MeshPhysicalMaterial({ color: 0x030404, roughness: 0.45, clearcoat: 0.6, clearcoatRoughness: 0.15 });
-  const lidMat = new THREE.MeshPhysicalMaterial({ color: 0x040505, metalness: 0, roughness: 0.55, clearcoat: 1, clearcoatRoughness: 0.02 });
+  const lidMat = new THREE.MeshPhysicalMaterial({ color: 0x020303, metalness: 0, roughness: 0.12, clearcoat: 1, clearcoatRoughness: 0.02 });
+  // Low base roughness: at 0.55 the key spot spread a grey sheen over the whole top at this grazing angle.
 
   // L4 base body
   const body = new THREE.Mesh(new RoundedBoxGeometry(1.62, 0.2, 1.62, 4, 0.08), ceramic);
@@ -113,9 +110,9 @@ function buildChip() {
   for (let side = 0; side < 4; side++) {
     const g = new THREE.Group(); g.rotation.y = side * Math.PI / 2;
     for (const off of [-0.42, 0.42]) {
-      const leg = new THREE.Mesh(legGeo, gold);
+      const leg = new THREE.Mesh(legGeo, leadGold);
       leg.position.set(0.86, 0.075, off); leg.rotation.z = -0.5; g.add(leg);
-      const foot = new THREE.Mesh(footGeo, gold);
+      const foot = new THREE.Mesh(footGeo, leadGold);
       foot.position.set(1.08, 0.01, off); g.add(foot);
     }
     chip.add(g);
@@ -134,7 +131,11 @@ function start() {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
   const scene = new THREE.Scene();
-  scene.background = hazeTex();
+  // Backdrop and fog share one colour, so the floor's far edge dissolves instead of drawing a horizon band.
+  // The haze glow is a CSS overlay above the canvas (proto/chip.html), over floor and backdrop alike, so it has no edge.
+  const BACKDROP = 0x020403;
+  scene.background = new THREE.Color(BACKDROP);
+  scene.fog = new THREE.Fog(BACKDROP, 15, 34); // chip sits ~12 from the camera: untouched
 
   // Lightformer-style environment: emissive strips filmed once into a PMREM cube. No rim light in the scene,
   // so nothing cool lands on the floor; the strips reach only what reflects them.
@@ -143,8 +144,9 @@ function start() {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(1, 0.98, 0.95).multiplyScalar(k), side: THREE.DoubleSide }));
     m.position.set(...pos); m.lookAt(0, 0.2, 0); env.add(m);
   };
-  strip(7, 0.35, [-2.77, 3.2, -5.94], 6);   // strip_back, raised so the flat lid mirrors dark and only bevels catch it
-  strip(7, 0.12, [-2.77, 1.1, -5.94], 4);   // strip_lid_gleam, low: lights the lid front bevel
+  // The flat top mirrors what sits ~11.5 deg above the horizon behind the chip (the camera's elevation). Keep that band
+  // black: the back strip sits high (~26 deg) so only the back and corner bevels, which tilt away, pick it up as thin lines.
+  strip(7, 0.25, [-2.77, 3.2, -5.94], 3.5); // strip_back
   strip(0.12, 2.5, [4.93, 1.0, -2.49], 8);  // strip_side
   strip(1.2, 1.2, [2.84, 4.2, -2.25], 1.2); // key softbox, dim
   strip(3, 0.15, [-4, 0.6, 3], 5);          // low front-left kicker for the lead faces
@@ -179,7 +181,7 @@ function start() {
   ao.setQualityMode("Low");
   if (FX.ao) composer.addPass(ao);
   const effects = [new ToneMappingEffect({ mode: ToneMappingMode.AGX })];
-  if (FX.bloom) effects.unshift(new BloomEffect({ luminanceThreshold: 1.0, luminanceSmoothing: 0.05, intensity: 0.45, mipmapBlur: true, radius: 0.6 }));
+  if (FX.bloom) effects.unshift(new BloomEffect({ luminanceThreshold: 1.4, luminanceSmoothing: 0.05, intensity: 0.3, mipmapBlur: true, radius: 0.45 }));
   composer.addPass(new EffectPass(cam, ...effects));
   const meter = FPS ? makeMeter(dpr) : null;
 
@@ -232,8 +234,11 @@ function makeMeter(dpr) {
     if (ext) gpu = String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)).slice(0, 48); } catch { /* masked */ }
   const on = Object.entries(FX).map(([k, v]) => `${k} ${v ? "on" : "off"}`).join(", ");
   const samples = []; let last = 0, shown = 0;
+  document.addEventListener("visibilitychange", () => { samples.length = 0; last = 0; });
   return { tick(now) {
-    if (last) samples.push([now, now - last]);
+    // A gap over 250 ms is a paused/hidden tab, not a slow frame: restart the window instead of averaging it in.
+    if (last && now - last > 250) samples.length = 0;
+    else if (last) samples.push([now, now - last]);
     last = now;
     while (samples.length && now - samples[0][0] > 2000) samples.shift(); // last 2 s
     if (now - shown < 500 || samples.length < 2) return;

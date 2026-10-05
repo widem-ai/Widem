@@ -12,6 +12,10 @@
   .poster { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 68% 50%; }
   canvas { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 600ms cubic-bezier(0.23, 1, 0.32, 1); }
   canvas.on { opacity: 1; }
+  /* Haze: stand-in for the .blend's volume, drawn over everything so it never shows an edge. */
+  .haze { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 600ms cubic-bezier(0.23, 1, 0.32, 1);
+    background: radial-gradient(70% 60% at 80% 18%, rgba(150, 158, 156, 0.13), rgba(150, 158, 156, 0) 72%); mix-blend-mode: screen; }
+  canvas.on + .haze { opacity: 1; }
   @media (prefers-reduced-motion: reduce) { canvas { transition: none; } }
 </style>
 </head>
@@ -19,6 +23,7 @@
   <div class="stage">
     <img class="poster" src="./poster.webp" alt="A dark chip with gold leads, lit by a single light">
     <canvas id="chip" aria-hidden="true"></canvas>
+    <div class="haze" aria-hidden="true"></div>
     
   </div>
   <script type="module" src="./chip.js"></script>

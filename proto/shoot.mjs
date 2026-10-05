@@ -9,8 +9,9 @@ const types = { ".html": "text/html", ".js": "text/javascript", ".wasm": "applic
 const srv = createServer((q, r) => { const p = join(DIST, decodeURIComponent(q.url.split("?")[0]).replace(/^\/$/, "/chip.html"));
   if (!existsSync(p) || statSync(p).isDirectory()) { r.writeHead(404); return r.end(); }
   r.writeHead(200, { "content-type": types[extname(p)] || "application/octet-stream" }); r.end(readFileSync(p)); });
-await new Promise((res) => srv.listen(PORT, "127.0.0.1", res));
-const url = `http://127.0.0.1:${PORT}/chip.html`;
+// SERVE_URL: shoot an already-running server (e.g. vite preview) instead of starting one.
+if (!process.env.SERVE_URL) await new Promise((res) => srv.listen(PORT, "127.0.0.1", res));
+const url = process.env.SERVE_URL || `http://127.0.0.1:${PORT}/chip.html`;
 const page = await launch();
 const res = {};
 const waitFrame = async () => { for (let i = 0; i < 150; i++) { const s = await page.evaluate("JSON.stringify(window.__proto||null)"); const o = JSON.parse(s);
@@ -37,5 +38,5 @@ try {
   res.noJs = await page.evaluate("document.querySelector('.poster').naturalWidth>0");
   await page.emulate({ width: 1440, height: 900, js: true });
   res.errors = page.errors.filter((e) => !/nowebgl/.test(e));
-} finally { await page.close(); srv.close(); }
+} finally { await page.close(); if (srv.listening) srv.close(); }
 console.log(JSON.stringify(res, null, 1));
