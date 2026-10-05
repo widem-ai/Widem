@@ -177,6 +177,42 @@ try {
     expect(await page.evaluate(`document.documentElement.lang`) === lang, `${tag}: html lang is not ${lang}`);
     expect(await page.evaluate(`document.querySelector("[data-hero-line]")?.textContent?.length > 0 && getComputedStyle(document.querySelector("[data-hero-line]")).direction`) === (lang === "ar" ? "rtl" : "ltr"), `${tag}: hero line direction`);
   }
+  // Task 8 QA fixes. I1: an instant jump past "familiar" (scrollbar drag, find-in-page, scrollIntoView) must show the nav.
+  const navVis = () => page.evaluate(`getComputedStyle(document.querySelector("nav[data-nav]")).visibility`);
+  const tab = async () => { for (const type of ["keyDown", "keyUp"]) await page.send("Input.dispatchKeyEvent", { type, key: "Tab", code: "Tab", windowsVirtualKeyCode: 9 }); await page.wait(100); };
+  const focused = () => page.evaluate(`(() => { const a = document.activeElement; return { inNav: !!a?.closest("nav[data-nav]"), skip: !!a?.matches("a[data-skip]"), tag: a?.tagName, href: a?.getAttribute("href") ?? "", target: !!(a?.getAttribute("href")?.startsWith("#") && document.querySelector(a.getAttribute("href"))), onScreen: (() => { const r = a?.getBoundingClientRect(); return !!r && r.width > 8 && r.height >= 24 && r.top >= 0 && r.bottom <= innerHeight; })() }; })()`);
+  await page.emulate({ width: 1440, height: 900 });
+  for (const id of ["how", "final"]) {
+    await page.goto(`http://127.0.0.1:${port}/Widem/`); await page.wait(800);
+    await page.evaluate(`window.scrollTo({ top: document.getElementById("${id}").offsetTop, behavior: "instant" })`); await page.wait(600);
+    expect(await navVis() === "visible", `nav: still hidden after an instant jump to #${id}`);
+  }
+  // Mutation gap 2: the hidden nav is visibility:hidden (not only transparent), so Tab never lands in it.
+  // m1: a keyboard user in the hero gets a skip link as the first Tab stop, visible when focused, pointing at a real target.
+  await page.goto(`http://127.0.0.1:${port}/Widem/`); await page.wait(800);
+  expect(await navVis() === "hidden", "nav: not visibility:hidden over the hero, so its links can take keyboard focus");
+  await tab();
+  const first = await focused();
+  expect(first.skip && first.target && first.onScreen, `keyboard: first Tab is not a visible skip link with a real target (${JSON.stringify(first)})`);
+  await tab();
+  expect(!(await focused()).inNav, "keyboard: second Tab from the top landed in the hidden nav");
+  // Found by eye: a focused skip link must not stay drawn over the nav once the visitor has scrolled past the hero.
+  await page.goto(`http://127.0.0.1:${port}/Widem/`); await page.wait(800);
+  await tab();
+  await page.evaluate(`window.scrollTo({ top: document.getElementById("how").offsetTop, behavior: "instant" })`); await page.wait(600);
+  expect(await page.evaluate(`getComputedStyle(document.querySelector("a[data-skip]")).visibility`) === "hidden", "keyboard: focused skip link still drawn over the nav after leaving the hero");
+  // I3 and mutation gap 3: with reduced motion the hero is one screen (no scrub height reserved) and the nav stays hidden at y=0.
+  for (const [width, height, path] of [[1440, 900, "/Widem/"], [390, 844, "/Widem/ar/"]]) {
+    const tag = `reduced ${path}@${width}`;
+    await page.emulate({ width, height, reduce: true });
+    await page.goto(`http://127.0.0.1:${port}${path}`); await page.wait(800);
+    const heroH = await page.evaluate(`document.querySelector("[data-hero-scroll]").getBoundingClientRect().height - innerHeight`);
+    expect(Math.abs(heroH) < 2, `${tag}: hero reserves ${Math.round(heroH)}px beyond one screen`);
+    expect(await navVis() === "hidden", `${tag}: nav visible over the hero at the top of the page`);
+    await page.evaluate(`window.scrollTo({ top: document.getElementById("familiar").offsetTop, behavior: "instant" })`); await page.wait(400);
+    expect(await navVis() === "visible", `${tag}: nav hidden inside "familiar"`);
+  }
+  await page.emulate({ width: 1440, height: 900, reduce: false });
   expect(page.errors.length === 0, `shell: console errors: ${page.errors.join(" | ")}`);
 } finally {
   await page.close();
