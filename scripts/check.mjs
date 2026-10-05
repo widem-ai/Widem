@@ -182,8 +182,10 @@ try {
     page.errors.length = 0; // the blocked frame logs load errors on purpose
   }
   // I4: on a slow network (QA's 50 KB/s, 300 ms latency) a jump to mid-scrub restarts the request order at the new
-  // frame and a near frame (within 1) is drawn within 1500 ms. One frame is at most 14.5 KB: about 0.3 s of transfer
-  // plus 0.3 s latency when it has the line to itself, so 1500 ms is 2.5x that; the old fixed order took 6.2 s.
+  // frame and a near frame (within 1) is drawn within 1000 ms. One frame is at most 14.5 KB: about 0.3 s of transfer
+  // plus 0.3 s latency when it has the line to itself (measured 632-640 ms over 9 runs; the throttle is deterministic),
+  // plus up to 0.1 s of polling. Each half of the fix is worth more than the margin: without cancelling the old
+  // requests it took 1159 ms, without giving the wanted frame the line alone 1464 ms, with the old fixed order 6.2 s.
   {
     await page.emulate({ width: 1440, height: 900 });
     await page.send("Network.setCacheDisabled", { cacheDisabled: true });
@@ -196,7 +198,7 @@ try {
     const after = await page.evaluate(`window.__frameReq.filter(([, t]) => t >= ${t0}).map(([n]) => n)`);
     expect(await expectedFrame() === MID_FRAME, `slow jump: scroll asks for frame ${await expectedFrame()}, not ${MID_FRAME}`);
     expect(after[0] === frameNameOf(MID_FRAME), `slow jump: first request after the jump was ${after[0]}, expected ${frameNameOf(MID_FRAME)}`);
-    expect(near >= 0 && ms <= 1500, `slow jump: near frame ${near} after ${ms} ms (bound 1500 ms, -1 = not within 6 s)`);
+    expect(near >= 0 && ms <= 1000, `slow jump: near frame ${near} after ${ms} ms (bound 1000 ms, -1 = not within 6 s)`);
     console.log(`slow jump: frame ${near} drawn ${ms} ms after the jump`);
     await page.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
     await page.send("Network.setCacheDisabled", { cacheDisabled: false });
