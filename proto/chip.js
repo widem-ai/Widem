@@ -45,7 +45,7 @@ const etchTex = () => canvasTex(512, 128, (g, w, h) => {
   g.clearRect(0, 0, w, h);
   g.fillStyle = "rgba(205,208,210,0.85)";
   g.textAlign = "center"; g.textBaseline = "middle";
-  g.font = "500 54px Helvetica, Arial, sans-serif";
+  g.font = "500 64px Helvetica, Arial, sans-serif";
   if ("letterSpacing" in g) g.letterSpacing = "18px";
   g.fillText("WIDEM", w / 2, h * 0.38);
   g.font = "400 22px Helvetica, Arial, sans-serif";
@@ -79,43 +79,56 @@ function buildChip() {
   const lidMat = new THREE.MeshPhysicalMaterial({ color: 0x020303, metalness: 0, roughness: 0.12, clearcoat: 1, clearcoatRoughness: 0.02 });
   // Low base roughness: at 0.55 the key spot spread a grey sheen over the whole top at this grazing angle.
 
-  // L4 base body
-  const body = new THREE.Mesh(new RoundedBoxGeometry(1.62, 0.2, 1.62, 4, 0.08), ceramic);
-  body.position.y = 0.1; chip.add(body);
+  // Proportions from scene.py: body 1.7 sq x 0.2, lid 1.7 sq, pins span 2.42. Body sits a little off the floor;
+  // the leads carry it (gull-wing), so a dark gap and shadow show under it as in beat1.
+  const extrude = (shape, depth, bevel, y) => {
+    const g = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: bevel > 0, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 4, curveSegments: 20 });
+    g.rotateX(-Math.PI / 2); g.translate(0, y, 0); return g;
+  };
+  // L4 base body: tighter corners than the lid, so the lid reads as a separate plate
+  const body = new THREE.Mesh(extrude(rrectShape(1.6, 0.07), 0.17, 0.01, 0.035), ceramic); chip.add(body);
   // gold seam where body meets substrate (the thin hot line in the still)
-  const seam = new THREE.Mesh(new RoundedBoxGeometry(1.66, 0.012, 1.66, 2, 0.006), gold);
-  seam.position.y = 0.206; chip.add(seam);
-  // L2 substrate
-  const sub = new THREE.Mesh(new RoundedBoxGeometry(1.64, 0.025, 1.64, 2, 0.01), ceramic);
-  sub.position.y = 0.224; chip.add(sub);
+  const seam = new THREE.Mesh(extrude(rrectShape(1.64, 0.08), 0.012, 0, 0.21), leadGold); chip.add(seam); // rough gold: the key lobe lights it
+  // L2 substrate: thin dark step between seam and lid
+  const sub = new THREE.Mesh(extrude(rrectShape(1.6, 0.1), 0.018, 0.003, 0.223), ceramic); chip.add(sub);
   // L3 die under the window: emissive canvas texture
   const die = new THREE.Mesh(new THREE.PlaneGeometry(0.74, 0.74),
     new THREE.MeshStandardMaterial({ color: 0x1a1510, metalness: 0.6, roughness: 0.3, emissive: 0xffffff, emissiveMap: dieTex(), emissiveIntensity: 0.9 }));
-  die.rotation.x = -Math.PI / 2; die.position.y = 0.238; chip.add(die);
-  // L1 lid: rounded slab with the window as a hole in the shape (no CSG), bevelled for hot edges
-  const lidShape = rrectShape(1.66, 0.2);
+  die.rotation.x = -Math.PI / 2; die.position.y = 0.246; chip.add(die);
+  // L1 lid: a thin plate that overhangs the body (the step), window as a hole in the shape (no CSG), bevelled edges
+  const lidShape = rrectShape(1.68, 0.2);
   lidShape.holes.push(rrectShape(0.7, 0.09));
-  const lidGeo = new THREE.ExtrudeGeometry(lidShape, { depth: 0.03, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.014, bevelSegments: 5, curveSegments: 24 });
-  lidGeo.rotateX(-Math.PI / 2);
-  const lid = new THREE.Mesh(lidGeo, lidMat);
-  lid.position.y = 0.25; chip.add(lid);
-  // WIDEM etch: canvas texture decal on the lid top, in front of the window
-  const etch = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.105),
-    new THREE.MeshStandardMaterial({ map: etchTex(), transparent: true, roughness: 0.85, metalness: 0, depthWrite: false }));
+  const lid = new THREE.Mesh(extrude(lidShape, 0.026, 0.012, 0.255), lidMat); chip.add(lid);
+  const LID_TOP = 0.255 + 0.026 + 0.012;
+  // WIDEM etch: rough, light-grey marks the key light picks up on the black mirror (plus a dim emissive floor)
+  const etchMap = etchTex();
+  const etch = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 0.115),
+    new THREE.MeshStandardMaterial({ color: 0xbfc3c4, map: etchMap, transparent: true, roughness: 0.9, metalness: 0,
+      emissive: 0xffffff, emissiveMap: etchMap, emissiveIntensity: 0.12, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
   etch.rotation.set(-Math.PI / 2, 0, 0);
-  etch.position.set(0.12, 0.293, 0.53); chip.add(etch);
+  etch.position.set(0.1, LID_TOP + 0.0008, 0.56); chip.add(etch);
 
-  // 8 gull-wing leads: two per side, each a sloped leg + a foot on the floor
-  const legGeo = new THREE.BoxGeometry(0.3, 0.022, 0.12), footGeo = new THREE.BoxGeometry(0.22, 0.02, 0.12);
+  // 8 gull-wing leads: one extruded bent strip each (out of the body, down through a bend, flat foot), lightly bevelled
+  const T = 0.018, Y0 = 0.1;
+  const lead = new THREE.Shape();
+  lead.moveTo(0.76, Y0 + T); lead.lineTo(0.9, Y0 + T);
+  lead.quadraticCurveTo(0.95, Y0 + T, 0.97, Y0 - 0.02);   // shoulder bend
+  lead.lineTo(1.0, T + 0.02);
+  lead.quadraticCurveTo(1.02, T, 1.07, T);                // knee bend
+  lead.lineTo(1.21, T); lead.lineTo(1.21, 0);
+  lead.lineTo(1.06, 0);
+  lead.quadraticCurveTo(1.0, 0, 0.98, 0.02);
+  lead.lineTo(0.95, Y0 - 0.03);
+  lead.quadraticCurveTo(0.935, Y0, 0.9, Y0);
+  lead.lineTo(0.76, Y0); lead.closePath();
+  const leadGeo = new THREE.ExtrudeGeometry(lead, { depth: 0.11, bevelEnabled: true, bevelThickness: 0.003, bevelSize: 0.003, bevelSegments: 2, curveSegments: 10 });
+  leadGeo.translate(0, 0.003, -0.055);
   for (let side = 0; side < 4; side++) {
-    const g = new THREE.Group(); g.rotation.y = side * Math.PI / 2;
     for (const off of [-0.42, 0.42]) {
-      const leg = new THREE.Mesh(legGeo, leadGold);
-      leg.position.set(0.86, 0.075, off); leg.rotation.z = -0.5; g.add(leg);
-      const foot = new THREE.Mesh(footGeo, leadGold);
-      foot.position.set(1.08, 0.01, off); g.add(foot);
+      const m = new THREE.Mesh(leadGeo, leadGold);
+      m.position.z = off;
+      const g = new THREE.Group(); g.rotation.y = side * Math.PI / 2; g.add(m); chip.add(g);
     }
-    chip.add(g);
   }
   chip.traverse((o) => { if (o.isMesh && o !== etch) { o.castShadow = true; o.receiveShadow = true; } });
   return chip;
@@ -147,6 +160,13 @@ function start() {
   // The flat top mirrors what sits ~11.5 deg above the horizon behind the chip (the camera's elevation). Keep that band
   // black: the back strip sits high (~26 deg) so only the back and corner bevels, which tilt away, pick it up as thin lines.
   strip(7, 0.25, [-2.77, 3.2, -5.94], 3.5); // strip_back
+  // Something for the black mirror to show: a soft vertical gradient (dark at the horizon, dim grey higher) placed along
+  // the lid's mirror direction (~11.5 deg up, behind-left). Dim on purpose: beat1's lid is a dark mirror, not a bright one.
+  { const tex = canvasTex(8, 128, (g, w, h) => { const l = g.createLinearGradient(0, 0, 0, h);
+      l.addColorStop(0, "rgb(150,153,153)"); l.addColorStop(0.5, "rgb(70,72,72)"); l.addColorStop(0.8, "rgb(20,21,21)"); l.addColorStop(1, "rgb(0,0,0)"); g.fillStyle = l; g.fillRect(0, 0, w, h); });
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(14, 4), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }));
+    m.position.set(-4.6, 1.9, -6.6); m.lookAt(0, 1.9, 0); env.add(m); }
+  strip(0.6, 0.08, [-3.2, 2.2, 2.4], 14);   // small hot strip front-left: glints on the lead bends, too far off the lid's mirror band
   strip(0.12, 2.5, [4.93, 1.0, -2.49], 8);  // strip_side
   strip(1.2, 1.2, [2.84, 4.2, -2.25], 1.2); // key softbox, dim
   strip(3, 0.15, [-4, 0.6, 3], 5);          // low front-left kicker for the lead faces
@@ -168,11 +188,13 @@ function start() {
 
   const chip = buildChip(); scene.add(chip);
 
-  // Camera: beat 1's camera (85 mm, vertical fov 16.07 deg at 16:9), converted from Blender's Z-up.
-  const cam = new THREE.PerspectiveCamera(16.07, 16 / 9, 0.5, 60);
+  // Camera: beat 1's camera, 85 mm on a 36 mm sensor with AUTO fit: horizontal fov 23.91 deg across the 16:9 frame
+  // (vertical 13.6). The earlier 16.07 was Blender's angle_y from the unused 24 mm sensor height: 18% too wide.
+  const V_FOV169 = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(23.913) / 2) / (16 / 9)));
+  const cam = new THREE.PerspectiveCamera(V_FOV169, 16 / 9, 0.5, 60);
   const CAM_POS = new THREE.Vector3(6.242, 2.390, 9.990);
   const CAM_DIR = new THREE.Vector3(-0.5605, -0.1704, -0.8104);
-  const H_FOV = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(16.07) / 2) * (16 / 9));
+  const H_FOV = THREE.MathUtils.degToRad(23.913);
 
   const composer = new EffectComposer(renderer, { frameBufferType: THREE.HalfFloatType, multisampling: FX.msaa ? 4 : 0 });
   composer.addPass(new RenderPass(scene, cam));
@@ -192,7 +214,7 @@ function start() {
     cam.position.copy(CAM_POS);
     if (cam.aspect >= 1) {
       // Landscape: beat 1's framing (chip right of centre, room for copy on the left).
-      cam.fov = cam.aspect >= 16 / 9 ? 16.07 : THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(H_FOV / 2) / cam.aspect));
+      cam.fov = cam.aspect >= 16 / 9 ? V_FOV169 : THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(H_FOV / 2) / cam.aspect));
       cam.lookAt(CAM_POS.clone().add(CAM_DIR));
     } else {
       // Portrait: aim at the chip and frame it larger. A placeholder; the phone composition is design work.
