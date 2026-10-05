@@ -28,6 +28,7 @@ try {
   // names the same frame, and a reload that always shows the first or last frame fails.
   const MID_FRAME = Math.floor(HERO_FRAMES / 2);
   const MID_Y = Math.floor(((MID_FRAME + 0.5) / HERO_FRAMES) * 3 * 900);
+  const frameNameOf = (i) => HERO.pattern.replace("{n}", String(i + 1).padStart(4, "0"));
   await page.emulate({ width: 1440, height: 900 });
   await page.goto(`http://127.0.0.1:${port}/Widem/`);
   await page.wait(800);
@@ -103,6 +104,23 @@ try {
   expect(slowY > 0, "hero: scroll position not restored after a reload on a slow network");
   expect(slowY > 0 && await frame() === await expectedFrame(), `hero: slow-network reload at y=${slowY} frame ${await frame()}, scroll says ${await expectedFrame()}`);
   await page.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+  // Load order (Task 6): after a mid-scrub reload the loader asks for the frame the scroll needs first,
+  // then its neighbours, never index order from frame 1. The loader sets img.src in request order, so a
+  // setter installed before the page's own scripts records that order.
+  const { identifier: orderSpy } = await page.send("Page.addScriptToEvaluateOnNewDocument", { source: `(() => {
+    const d = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, "src"); window.__frameOrder = [];
+    Object.defineProperty(HTMLImageElement.prototype, "src", { configurable: true, get: d.get,
+      set(v) { if (/\\/film\\/hero\\/frame-/.test(v)) window.__frameOrder.push(v.split("/").pop()); d.set.call(this, v); } });
+  })()` });
+  await scrollTo(MID_Y); await page.wait(500);
+  await page.reload(); await page.wait(1200);
+  const order = (await page.evaluate(`window.__frameOrder`)).slice(-HERO_FRAMES);
+  await page.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: orderSpy });
+  expect(order.length === HERO_FRAMES, `load order: recorded ${order.length} frame requests, expected ${HERO_FRAMES}`);
+  expect(await expectedFrame() === MID_FRAME, `load order: reload restored scroll to frame ${await expectedFrame()}, not ${MID_FRAME}, so this check proves nothing`);
+  const near = [MID_FRAME - 1, MID_FRAME + 1].map(frameNameOf);
+  expect(order[0] === frameNameOf(MID_FRAME) && near.includes(order[1]) && near.includes(order[2]),
+    `load order: first requests ${order.slice(0, 3).join(", ")}, expected ${frameNameOf(MID_FRAME)} then ${near.join(" and ")}`);
   expect(page.errors.length === 0, `console errors: ${page.errors.join(" | ")}`);
   // Reduced motion: poster only, no pin, page reads top to bottom (Task 4)
   await page.emulate({ width: 1440, height: 900, reduce: true });
