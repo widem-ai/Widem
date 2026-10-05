@@ -13,6 +13,8 @@ Lives at `/Widem/` (GitHub Pages), Arabic at `/Widem/ar/`.
 - `src/site.ts` base path, languages, direction. No visible strings.
 - `spike/` (branch `spike-live-chip` only) an isolated three.js test page for the live chip; not built or checked with the site.
   Build: `npx vite build --config spike/vite.config.mjs`; shoot: `node spike/shoot.mjs <outDir>`. `three` is a dependency for it only.
+- `proto/` (branch `proto-code-only`) the chip built in code only: three + `postprocessing` + `n8ao`, no GLB. Build:
+  `npx vite build --config proto/vite.config.mjs`; shoot: `node proto/shoot.mjs <outDir>`.
 - `scripts/` `check.mjs` (browser check), `serve.mjs` (serves `dist/` at `/Widem/`), `lib/cdp.mjs` (Chrome driver).
   `build-sequence.mjs <id> <framesDir> [--budget-kb N]` copies Blender's `frame-####.webp` into `public/film/<id>/`,
   writes its manifest (poster = frame 1) and fails over the size budget (hero: 6000 KB). Frames are rendered by
