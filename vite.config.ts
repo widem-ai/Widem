@@ -8,4 +8,6 @@ import { BASE } from "./src/site.ts";
 export default defineConfig({
   base: BASE,
   plugins: [react(), tailwindcss()],
+  // "@/..." imports (shadcn convention) resolve through tsconfig.json "paths"; no @types/node needed.
+  resolve: { tsconfigPaths: true },
 });
