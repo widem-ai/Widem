@@ -1,0 +1,34 @@
+{
+ "390": {
+  "firstFrameMs": 127,
+  "error": null,
+  "frames": 7,
+  "firstFrameSinceNav": 176,
+  "fps": 144,
+  "canvasW": 390
+ },
+ "1440": {
+  "firstFrameMs": 1293,
+  "error": null,
+  "frames": 1,
+  "firstFrameSinceNav": 1349,
+  "fps": 144,
+  "canvasW": 1440
+ },
+ "fallback": {
+  "canvas": false,
+  "posterLoaded": true,
+  "err": "WebGL disabled by ?nowebgl"
+ },
+ "reduced": {
+  "firstFrameMs": 240,
+  "error": null,
+  "frames": 1,
+  "firstFrameSinceNav": 265,
+  "framesAfter1s": 2
+ },
+ "noJs": true,
+ "errors": [
+  "log: Failed to load resource: the server responded with a status of 404 (Not Found) http://127.0.0.1:4791/favicon.ico"
+ ]
+}
